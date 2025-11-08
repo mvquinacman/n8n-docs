@@ -1,0 +1,378 @@
+{
+  "name": "Gmail Email Organizer - Manual",
+  "nodes": [
+    {
+      "id": "manual-trigger-001",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -560,
+        -260
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "gmail-fetch-emails",
+      "name": "Gmail - Fetch All Emails",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        -360,
+        -260
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "filters": {
+          "includeSpamTrash": false
+        },
+        "options": {
+          "attachments": "none"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "10LJ3tXKoUfexiKU",
+          "name": "Gmail account"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "a25e0e42-8eab-49c5-a553-797da40eb623",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -220,
+        -60
+      ],
+      "parameters": {
+        "options": {
+          "maxTokens": 4096
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "qR44iMsUYcLrhdR0",
+          "name": "OpenAi account"
+        }
+      },
+      "notesInFlow": false,
+      "typeVersion": 1
+    },
+    {
+      "id": "cf437748-a0df-42a2-b1ca-f93162d85bfe",
+      "name": "Gmail - read labels",
+      "type": "n8n-nodes-base.gmailTool",
+      "position": [
+        80,
+        -40
+      ],
+      "webhookId": "d8ec9401-a9ff-4fe2-9c1e-5a8036cd96c9",
+      "parameters": {
+        "resource": "label",
+        "returnAll": true,
+        "descriptionType": "manual",
+        "toolDescription": "Tool to read all existing gmail labels. When processing results, ONLY use custom user-created labels (type='user'). Filter out system labels like UNREAD, CATEGORY_*, INBOX, SENT, etc."
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "10LJ3tXKoUfexiKU",
+          "name": "Gmail account"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "152f1970-7a1f-4977-9c21-64b69242d3a9",
+      "name": "Gmail - get message",
+      "type": "n8n-nodes-base.gmailTool",
+      "position": [
+        260,
+        -40
+      ],
+      "webhookId": "d8ec9401-a9ff-4fe2-9c1e-5a8036cd96c9",
+      "parameters": {
+        "messageId": "={{ $fromAI('gmail_message_id', 'id of the gmail message, like 1944fdc33f544369', 'string') }}",
+        "operation": "get",
+        "descriptionType": "manual",
+        "toolDescription": "Tool to read a specific message based on the message ID"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "10LJ3tXKoUfexiKU",
+          "name": "Gmail account"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "ae09cedc-9675-4080-bcdc-3d6c4e4bc490",
+      "name": "Gmail - add label to message",
+      "type": "n8n-nodes-base.gmailTool",
+      "position": [
+        460,
+        -40
+      ],
+      "webhookId": "7a87b026-1c6e-40e1-a062-aefdd1af1585",
+      "parameters": {
+        "labelIds": "={{ $fromAI('gmail_categories', 'array of label ids') }}",
+        "messageId": "={{ $fromAI('gmail_message_id') }}",
+        "operation": "addLabels",
+        "descriptionType": "manual",
+        "toolDescription": "Tool to add CUSTOM user-created labels to message. NEVER include system labels (UNREAD, CATEGORY_*, INBOX, etc). Only provide IDs of custom labels with type 'user'."
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "10LJ3tXKoUfexiKU",
+          "name": "Gmail account"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "be4a92ab-d3ab-451b-8655-172851f68628",
+      "name": "Gmail - create label",
+      "type": "n8n-nodes-base.gmailTool",
+      "position": [
+        640,
+        -40
+      ],
+      "webhookId": "d8ec9401-a9ff-4fe2-9c1e-5a8036cd96c9",
+      "parameters": {
+        "name": "={{ $fromAI('new_label_name', 'new label name', 'string' ) }} ",
+        "options": {},
+        "resource": "label",
+        "operation": "create",
+        "descriptionType": "manual",
+        "toolDescription": "Tool to create a new label, only use if label does not already exist"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "10LJ3tXKoUfexiKU",
+          "name": "Gmail account"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "a40466d2-2fe3-4a97-98fe-b14cc38cc141",
+      "name": "Gmail labelling agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "notes": "Objective:\nAutomatically categorize incoming emails based on existing custom Gmail labels or create a new label if none match.\n\nIMPORTANT: ONLY use custom user-created labels. NEVER use system labels (UNREAD, CATEGORY_*, INBOX, etc).\n\nTools:\n- Get message\n- Read all labels (filter to custom labels only)\n- Create label\n- Assign label to message\n\nInstructions:\nAnalyze email content and assign appropriate custom labels only.",
+      "onError": "continueErrorOutput",
+      "position": [
+        -60,
+        -260
+      ],
+      "parameters": {
+        "text": "=Label the email based on the details below:\n{{ JSON.stringify($json) }}",
+        "options": {
+          "maxIterations": 5,
+          "systemMessage": "Objective:\nAutomatically categorize incoming emails based on existing Gmail labels or create a new label if none match.\n\nTools:\n- Get message\n- Read all labels\n- Create label\n- Assign label to message\n\nCRITICAL RULES:\n1. ONLY use custom user-created labels (labels with type 'user')\n2. NEVER use system labels in the labelIds array. System labels include:\n   - UNREAD, READ, STARRED, IMPORTANT\n   - CATEGORY_UPDATES, CATEGORY_SOCIAL, CATEGORY_PROMOTIONS, CATEGORY_FORUMS, CATEGORY_PERSONAL\n   - INBOX, SENT, DRAFT, TRASH, SPAM\n   - Any label starting with \"CATEGORY_\" or in all CAPS\n3. When reading labels, filter out all system labels and only consider custom labels\n4. Only return label IDs for custom user-created labels\n\nInstructions:\n\nLabel Matching:\n\nAnalyze the email's subject, sender, recipient, keywords, and content.\nCompare with existing CUSTOM Gmail labels (ignore system labels) to find the most relevant match.\n\nLabel Assignment:\n\nAssign the email to the most appropriate existing CUSTOM label only.\nIf no suitable custom label exists, create a new custom label based on the existing custom labels.\nTry reusing existing custom labels as much as possible.\nAlways create a label as a sublabel when appropriate.\nIf the main label already exists, create the new label under the existing label.\nIf no main label exists, create the label \"AI\" and create the new label under this label.\n\nLabel Creation:\n\nEnsure new labels align with the structure of existing ones, including capitalization, delimiters, and prefixes.\nUse format like \"ParentLabel/ChildLabel\" for hierarchical labels.\n\nExamples:\n\nIf the email subject is \"Project Alpha Update,\" assign to [Project Alpha] if it exists (and it's a custom label).\nFor \"New Vendor Inquiry,\" create \"Vendor Inquiry\" if no relevant custom label exists.\nFor promotions, create a custom label like \"Promotions\" or \"Marketing\" instead of using CATEGORY_PROMOTIONS.\n\nOutcome:\nEmails are consistently categorized under appropriate custom labels only, maintaining Gmail's organizational structure while avoiding system labels."
+        },
+        "promptType": "define"
+      },
+      "notesInFlow": true,
+      "retryOnFail": false,
+      "typeVersion": 1.7
+    },
+    {
+      "id": "6b514df4-761c-4072-abf8-d572ee4b8030",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -60,
+        -40
+      ],
+      "parameters": {
+        "sessionKey": "={{ $json.id }}",
+        "sessionIdType": "customKey"
+      },
+      "typeVersion": 1.3
+    },
+    {
+      "id": "f06717ed-00d7-4a99-a78c-53217a0067e7",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        -220,
+        -260
+      ],
+      "webhookId": "2066b863-4526-40cf-90aa-82229895a73c",
+      "parameters": {
+        "amount": 1
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "f6084fc3-2b6b-488f-b212-f179435e1a63",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -640,
+        -340
+      ],
+      "parameters": {
+        "width": 360,
+        "height": 200,
+        "content": "## Manual Trigger\nClick 'Execute Workflow' to manually organize your emails.\n\n**Fetches:**\n- Both read and unread emails\n- Limit: 50 emails per run\n- Can be adjusted in Gmail node"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "5ede55a4-52ae-48c0-969e-afa45d19f2f0",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        -960
+      ],
+      "parameters": {
+        "width": 780,
+        "height": 840,
+        "content": "## Gmail labelling agent\n- Read the message\n- Read existing CUSTOM labels only\n- Create a new custom label if needed\n- Assign custom label to message\n\n----\n\n**CRITICAL:** Only uses CUSTOM user-created labels.\n**NEVER** uses system labels like:\n- UNREAD, CATEGORY_*, INBOX, SENT, etc.\n\nObjective:\nAutomatically categorize emails using custom labels or create new ones.\n\nHow it works:\n1. Analyzes email subject, sender, and content\n2. Matches with existing custom labels\n3. Creates new custom labels if needed (hierarchical structure)\n4. Assigns appropriate custom labels\n\nExamples:\n- \"Project Alpha Update\" → assigns to custom label \"Project Alpha\"\n- \"Vendor Inquiry\" → creates custom label \"Vendors/Inquiry\"\n- Promotions → creates custom label \"Marketing\" (not CATEGORY_PROMOTIONS)"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "7c8bb6de-b729-4c8e-90c2-641d173ed3dd",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        160
+      ],
+      "parameters": {
+        "width": 440,
+        "content": "## Gmail API\n- Add credentials "
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "e9d05013-9546-426f-bdc7-45199dbfc72a",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -580,
+        80
+      ],
+      "parameters": {
+        "width": 440,
+        "content": "## OpenAI\n- Add credentials "
+      },
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Fetch All Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Fetch All Emails": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - get message": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - read labels": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - create label": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - add label to message": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gmail labelling agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-08T00:00:00.000Z",
+  "versionId": "1"
+}
