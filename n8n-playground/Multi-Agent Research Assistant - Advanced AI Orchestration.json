@@ -1,0 +1,704 @@
+{
+  "id": "MultiAgentResearchAssistant2025",
+  "meta": {
+    "instanceId": "multi-agent-research-assistant-v1"
+  },
+  "name": "Multi-Agent Research Assistant - Advanced AI Orchestration",
+  "tags": ["ai-agents", "research", "orchestration", "multi-agent", "analysis"],
+  "nodes": [
+    {
+      "id": "form-trigger",
+      "name": "Research Topic Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [-1400, 500],
+      "webhookId": "multi-agent-research-webhook",
+      "parameters": {
+        "path": "multi-agent-research",
+        "formTitle": "🔬 Multi-Agent Research Assistant",
+        "formDescription": "Enter your research topic and let multiple AI agents collaborate to create a comprehensive research report!",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Research Topic",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "e.g., The impact of artificial intelligence on healthcare diagnostics"
+            },
+            {
+              "fieldLabel": "Research Depth",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Quick Overview (5 sources)" },
+                  { "option": "Standard Research (10-15 sources)" },
+                  { "option": "Comprehensive (20+ sources)" },
+                  { "option": "Deep Dive (30+ sources)" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Report Format",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Executive Summary" },
+                  { "option": "Academic Paper" },
+                  { "option": "Business Report" },
+                  { "option": "Technical Whitepaper" },
+                  { "option": "Literature Review" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Include Academic Sources",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Yes - Prioritize peer-reviewed" },
+                  { "option": "Mixed - Academic + Industry" },
+                  { "option": "No - Industry sources only" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Special Focus Areas (optional)",
+              "fieldType": "textarea",
+              "requiredField": false,
+              "placeholder": "e.g., Recent developments in 2024, regulatory aspects, case studies"
+            }
+          ]
+        },
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "sticky-input",
+      "name": "📝 INPUT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1480, 340],
+      "parameters": {
+        "color": 7,
+        "width": 320,
+        "height": 400,
+        "content": "## 📝 Research Input\n\nUser provides:\n- Research topic\n- Depth of research\n- Report format\n- Source preferences\n- Special focus areas"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "initialize-settings",
+      "name": "Initialize Research Settings",
+      "type": "n8n-nodes-base.set",
+      "position": [-1060, 500],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "topic",
+              "type": "string",
+              "value": "={{ $json['Research Topic'] }}"
+            },
+            {
+              "id": "2",
+              "name": "depth",
+              "type": "string",
+              "value": "={{ $json['Research Depth'] }}"
+            },
+            {
+              "id": "3",
+              "name": "format",
+              "type": "string",
+              "value": "={{ $json['Report Format'] }}"
+            },
+            {
+              "id": "4",
+              "name": "academicSources",
+              "type": "string",
+              "value": "={{ $json['Include Academic Sources'] }}"
+            },
+            {
+              "id": "5",
+              "name": "specialFocus",
+              "type": "string",
+              "value": "={{ $json['Special Focus Areas (optional)'] || 'None specified' }}"
+            },
+            {
+              "id": "6",
+              "name": "sessionId",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "id": "7",
+              "name": "sourceCount",
+              "type": "number",
+              "value": "={{ $json['Research Depth'].includes('Quick') ? 5 : $json['Research Depth'].includes('Standard') ? 12 : $json['Research Depth'].includes('Comprehensive') ? 25 : 35 }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.3
+    },
+    {
+      "id": "sticky-coordinator",
+      "name": "🎯 COORDINATOR AGENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-740, 340],
+      "parameters": {
+        "color": 4,
+        "width": 340,
+        "height": 400,
+        "content": "## 🎯 Research Coordinator\n\nAI Agent:\n- Creates research plan\n- Defines search queries\n- Assigns tasks to agents\n- Coordinates workflow"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "coordinator-agent",
+      "name": "Research Coordinator Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-660, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Research Coordinator Agent. Your role is to plan and orchestrate a comprehensive research project.\n\nResearch Topic: {{ $json.topic }}\nDepth: {{ $json.depth }}\nFormat: {{ $json.format }}\nAcademic Sources: {{ $json.academicSources }}\nSpecial Focus: {{ $json.specialFocus }}\nTarget Sources: {{ $json.sourceCount }}\n\nCreate a detailed research plan with:\n\n1. **Research Questions** (3-5 key questions to answer)\n2. **Search Queries** (10-15 specific search queries for web research)\n3. **Academic Keywords** (5-10 keywords for academic databases)\n4. **Topic Breakdown** (4-6 main sections to cover)\n5. **Data Points** (Key metrics/statistics to find)\n6. **Expert Perspectives** (Types of expert opinions needed)\n7. **Timeline Context** (Relevant time periods to focus on)\n\nFormat as JSON:\n{\n  \"researchQuestions\": [...],\n  \"webSearchQueries\": [...],\n  \"academicKeywords\": [...],\n  \"topicSections\": [\n    {\n      \"section\": \"...\",\n      \"focus\": \"...\",\n      \"keyPoints\": [...]\n    }\n  ],\n  \"dataPoints\": [...],\n  \"expertTypes\": [...],\n  \"timelineContext\": \"...\",\n  \"researchStrategy\": \"A brief strategy for this research\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4,
+          "maxTokens": 2500
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-researchers",
+      "name": "🔍 RESEARCH AGENTS",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-380, 180],
+      "parameters": {
+        "color": 6,
+        "width": 720,
+        "height": 520,
+        "content": "## 🔍 Research Agents (Parallel)\n\nMultiple AI agents gather information:\n- Web Researcher\n- Academic Researcher\n- Data Analyst"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "web-researcher-agent",
+      "name": "Web Researcher Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-300, 350],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Web Research Agent. Your specialty is finding current, relevant information from web sources.\n\nResearch Topic: {{ $('Initialize Research Settings').item.json.topic }}\nSearch Queries: {{ $json.message.content.webSearchQueries.join(', ') }}\nResearch Questions: {{ $json.message.content.researchQuestions.join('; ') }}\n\nYour task:\n1. Simulate searching for information using the provided queries\n2. Identify key findings, trends, and recent developments\n3. Note important statistics and data points\n4. Identify credible sources and expert opinions\n5. Highlight controversies or debates in the field\n\nProvide a comprehensive summary of web research findings.\n\nFormat as JSON:\n{\n  \"keyFindings\": [\n    {\n      \"finding\": \"...\",\n      \"source\": \"...\",\n      \"relevance\": \"high/medium/low\",\n      \"dateContext\": \"...\"\n    }\n  ],\n  \"statistics\": [...],\n  \"expertOpinions\": [...],\n  \"trends\": [...],\n  \"controversies\": [...],\n  \"recommendedSources\": [\n    {\n      \"title\": \"...\",\n      \"url\": \"...\",\n      \"summary\": \"...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.5,
+          "maxTokens": 3000
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "academic-researcher-agent",
+      "name": "Academic Researcher Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-300, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Academic Research Agent. Your specialty is finding scholarly, peer-reviewed research.\n\nResearch Topic: {{ $('Initialize Research Settings').item.json.topic }}\nAcademic Keywords: {{ $('Research Coordinator Agent').item.json.message.content.academicKeywords.join(', ') }}\nResearch Questions: {{ $('Research Coordinator Agent').item.json.message.content.researchQuestions.join('; ') }}\nAcademic Preference: {{ $('Initialize Research Settings').item.json.academicSources }}\n\nYour task:\n1. Identify relevant academic papers and studies\n2. Summarize key research methodologies\n3. Extract significant findings and conclusions\n4. Note citation counts and research impact\n5. Identify research gaps and future directions\n\nFormat as JSON:\n{\n  \"academicPapers\": [\n    {\n      \"title\": \"...\",\n      \"authors\": \"...\",\n      \"year\": \"...\",\n      \"journal\": \"...\",\n      \"keyFindings\": \"...\",\n      \"methodology\": \"...\",\n      \"relevance\": \"high/medium/low\"\n    }\n  ],\n  \"researchThemes\": [...],\n  \"methodologies\": [...],\n  \"researchGaps\": [...],\n  \"futureDirections\": [...],\n  \"theoreticalFrameworks\": [...]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 3000
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "data-analyst-agent",
+      "name": "Data Analyst Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-300, 650],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Data Analyst Agent. Your specialty is analyzing data, statistics, and quantitative information.\n\nResearch Topic: {{ $('Initialize Research Settings').item.json.topic }}\nData Points Needed: {{ $('Research Coordinator Agent').item.json.message.content.dataPoints.join(', ') }}\n\nYour task:\n1. Identify key metrics and statistics\n2. Analyze trends over time\n3. Compare different data points\n4. Identify correlations and patterns\n5. Provide data-driven insights\n\nFormat as JSON:\n{\n  \"keyMetrics\": [\n    {\n      \"metric\": \"...\",\n      \"value\": \"...\",\n      \"context\": \"...\",\n      \"source\": \"...\",\n      \"timeframe\": \"...\"\n    }\n  ],\n  \"trends\": [\n    {\n      \"trend\": \"...\",\n      \"direction\": \"increasing/decreasing/stable\",\n      \"significance\": \"...\"\n    }\n  ],\n  \"comparisons\": [...],\n  \"correlations\": [...],\n  \"insights\": [...],\n  \"dataVisualizationSuggestions\": [...]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2500
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "merge-research",
+      "name": "Merge All Research",
+      "type": "n8n-nodes-base.merge",
+      "position": [20, 500],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "sticky-synthesis",
+      "name": "🧪 SYNTHESIS AGENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [360, 340],
+      "parameters": {
+        "color": 5,
+        "width": 340,
+        "height": 400,
+        "content": "## 🧪 Synthesis Agent\n\nAI Agent:\n- Combines all research\n- Identifies patterns\n- Synthesizes insights\n- Creates unified view"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "synthesis-agent",
+      "name": "Research Synthesis Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [440, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Research Synthesis Agent. Your role is to combine all research findings into a coherent analysis.\n\nOriginal Topic: {{ $('Initialize Research Settings').item.json.topic }}\n\nWeb Research Findings:\n{{ JSON.stringify($('Web Researcher Agent').item.json.message.content, null, 2) }}\n\nAcademic Research Findings:\n{{ JSON.stringify($('Academic Researcher Agent').item.json.message.content, null, 2) }}\n\nData Analysis:\n{{ JSON.stringify($('Data Analyst Agent').item.json.message.content, null, 2) }}\n\nYour task:\n1. Identify common themes across all research\n2. Synthesize key findings into main conclusions\n3. Note any conflicting information or debates\n4. Highlight the most significant insights\n5. Create a logical narrative structure\n\nFormat as JSON:\n{\n  \"mainThemes\": [...],\n  \"keyConclusions\": [...],\n  \"supportingEvidence\": [\n    {\n      \"conclusion\": \"...\",\n      \"evidence\": [...],\n      \"sources\": [...]\n    }\n  ],\n  \"conflicts\": [...],\n  \"criticalInsights\": [...],\n  \"narrativeStructure\": [\n    {\n      \"section\": \"...\",\n      \"mainPoint\": \"...\",\n      \"supportingPoints\": [...]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4,
+          "maxTokens": 3500
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-factcheck",
+      "name": "✅ FACT-CHECKER AGENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [720, 340],
+      "parameters": {
+        "color": 3,
+        "width": 340,
+        "height": 400,
+        "content": "## ✅ Fact-Checker Agent\n\nAI Agent:\n- Verifies claims\n- Checks consistency\n- Validates sources\n- Flags uncertainties"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "factchecker-agent",
+      "name": "Fact-Checker Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [800, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Fact-Checker Agent. Your role is to verify claims and ensure accuracy.\n\nResearch Topic: {{ $('Initialize Research Settings').item.json.topic }}\n\nSynthesized Research:\n{{ JSON.stringify($json.message.content, null, 2) }}\n\nYour task:\n1. Review all major claims and conclusions\n2. Assess the strength of evidence for each claim\n3. Identify any logical inconsistencies\n4. Flag claims that need additional verification\n5. Rate the overall reliability of findings\n6. Suggest additional sources for verification\n\nFormat as JSON:\n{\n  \"verifiedClaims\": [\n    {\n      \"claim\": \"...\",\n      \"evidenceStrength\": \"strong/moderate/weak\",\n      \"sources\": [...],\n      \"confidence\": \"high/medium/low\"\n    }\n  ],\n  \"flaggedClaims\": [\n    {\n      \"claim\": \"...\",\n      \"issue\": \"...\",\n      \"recommendation\": \"...\"\n    }\n  ],\n  \"inconsistencies\": [...],\n  \"reliabilityScore\": \"0-100\",\n  \"verificationSuggestions\": [...],\n  \"sourcesNeedingValidation\": [...]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 2500
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-writer",
+      "name": "✍️ WRITER AGENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1080, 340],
+      "parameters": {
+        "color": 2,
+        "width": 340,
+        "height": 400,
+        "content": "## ✍️ Writer Agent\n\nAI Agent:\n- Writes full report\n- Structures content\n- Cites sources\n- Creates executive summary"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "writer-agent",
+      "name": "Research Writer Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [1160, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Research Writer Agent. Your role is to write a comprehensive, well-structured research report.\n\nResearch Topic: {{ $('Initialize Research Settings').item.json.topic }}\nReport Format: {{ $('Initialize Research Settings').item.json.format }}\n\nResearch Plan:\n{{ JSON.stringify($('Research Coordinator Agent').item.json.message.content, null, 2).substring(0, 1000) }}\n\nSynthesized Findings:\n{{ JSON.stringify($('Research Synthesis Agent').item.json.message.content, null, 2) }}\n\nFact-Check Results:\n{{ JSON.stringify($('Fact-Checker Agent').item.json.message.content, null, 2).substring(0, 1500) }}\n\nWrite a comprehensive research report in {{ $('Initialize Research Settings').item.json.format }} format.\n\nInclude:\n1. Executive Summary (200-300 words)\n2. Introduction with context and objectives\n3. Methodology overview\n4. Main findings organized by themes\n5. Analysis and discussion\n6. Conclusions and implications\n7. Recommendations (if applicable)\n8. References and sources\n\nUse professional language, cite sources properly, and maintain academic rigor.\nFormat using Markdown with proper headings, lists, and formatting."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 4000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-editor",
+      "name": "📝 EDITOR AGENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1440, 340],
+      "parameters": {
+        "color": 1,
+        "width": 340,
+        "height": 400,
+        "content": "## 📝 Editor Agent\n\nAI Agent:\n- Reviews report\n- Improves clarity\n- Checks structure\n- Polishes language"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "editor-agent",
+      "name": "Editor Agent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [1520, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Editor Agent. Your role is to review and refine the research report for publication quality.\n\nReport Format: {{ $('Initialize Research Settings').item.json.format }}\n\nDraft Report:\n{{ $json.message.content }}\n\nYour task:\n1. Review overall structure and flow\n2. Improve clarity and readability\n3. Ensure consistency in tone and style\n4. Check that all claims are properly supported\n5. Verify citation format\n6. Enhance transitions between sections\n7. Polish language and grammar\n8. Add any necessary clarifications\n\nProvide the edited version of the complete report in Markdown format.\nAlso provide a brief editor's note with key improvements made."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.5,
+          "maxTokens": 4000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "prepare-final-output",
+      "name": "Prepare Final Research Report",
+      "type": "n8n-nodes-base.code",
+      "position": [1800, 500],
+      "parameters": {
+        "jsCode": "// Compile all research data and final report\nconst settings = $('Initialize Research Settings').item.json;\nconst researchPlan = $('Research Coordinator Agent').item.json.message.content;\nconst webResearch = $('Web Researcher Agent').item.json.message.content;\nconst academicResearch = $('Academic Researcher Agent').item.json.message.content;\nconst dataAnalysis = $('Data Analyst Agent').item.json.message.content;\nconst synthesis = $('Research Synthesis Agent').item.json.message.content;\nconst factCheck = $('Fact-Checker Agent').item.json.message.content;\nconst finalReport = $json.message.content;\n\n// Extract editor's note if present\nlet editedReport = finalReport;\nlet editorsNote = \"Report reviewed and refined for clarity, accuracy, and professional presentation.\";\n\nif (finalReport.includes(\"Editor's Note:\") || finalReport.includes(\"Editors Note:\")) {\n  const noteMatch = finalReport.match(/Editor'?s? Note:([\\s\\S]*?)(?=\\n\\n#|$)/i);\n  if (noteMatch) {\n    editorsNote = noteMatch[1].trim();\n    editedReport = finalReport.replace(noteMatch[0], '').trim();\n  }\n}\n\n// Create metadata\nconst metadata = {\n  topic: settings.topic,\n  format: settings.format,\n  depth: settings.depth,\n  sourcesTargeted: settings.sourceCount,\n  academicPreference: settings.academicSources,\n  specialFocus: settings.specialFocus,\n  generatedAt: settings.sessionId,\n  reliabilityScore: factCheck.reliabilityScore || \"N/A\",\n  agentsUsed: [\n    \"Research Coordinator\",\n    \"Web Researcher\",\n    \"Academic Researcher\",\n    \"Data Analyst\",\n    \"Research Synthesizer\",\n    \"Fact-Checker\",\n    \"Writer\",\n    \"Editor\"\n  ],\n  researchQuestions: researchPlan.researchQuestions || [],\n  keyThemes: synthesis.mainThemes || [],\n  totalSources: (\n    (webResearch.recommendedSources?.length || 0) +\n    (academicResearch.academicPapers?.length || 0)\n  )\n};\n\n// Create executive brief\nconst executiveBrief = {\n  topic: settings.topic,\n  keyConclu sions: synthesis.keyConclusions?.slice(0, 5) || [],\n  criticalInsights: synthesis.criticalInsights?.slice(0, 3) || [],\n  reliabilityScore: factCheck.reliabilityScore,\n  flaggedItems: factCheck.flaggedClaims?.length || 0,\n  topMetrics: dataAnalysis.keyMetrics?.slice(0, 5) || []\n};\n\nreturn [{\n  json: {\n    // Final outputs\n    finalReport: editedReport,\n    editorsNote: editorsNote,\n    \n    // Metadata\n    metadata: metadata,\n    executiveBrief: executiveBrief,\n    \n    // Raw research data (for reference)\n    rawResearch: {\n      researchPlan: researchPlan,\n      webFindings: webResearch,\n      academicFindings: academicResearch,\n      dataAnalysis: dataAnalysis,\n      synthesis: synthesis,\n      factCheck: factCheck\n    },\n    \n    // Export formats\n    formats: {\n      markdown: editedReport,\n      plainText: editedReport.replace(/[#*_`\\[\\]()]/g, ''),\n      json: JSON.stringify({\n        metadata: metadata,\n        report: editedReport,\n        executiveBrief: executiveBrief\n      }, null, 2)\n    },\n    \n    // Analytics\n    analytics: {\n      wordCount: editedReport.split(/\\s+/).length,\n      sectionCount: (editedReport.match(/^##/gm) || []).length,\n      citationCount: (editedReport.match(/\\[\\d+\\]|\\(http/g) || []).length,\n      processingTime: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "sticky-output",
+      "name": "📊 OUTPUT & DELIVERY",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1800, 340],
+      "parameters": {
+        "color": 7,
+        "width": 640,
+        "height": 400,
+        "content": "## 📊 Output & Delivery\n\nFinal outputs:\n- Complete research report\n- Executive brief\n- Metadata & analytics\n- Multiple export formats\n- Notifications"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "save-to-database",
+      "name": "Save to Research Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2040, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-database.com/api/research",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "topic",
+              "value": "={{ $json.metadata.topic }}"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.metadata.format }}"
+            },
+            {
+              "name": "report",
+              "value": "={{ $json.finalReport }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify($json.metadata) }}"
+            },
+            {
+              "name": "executiveBrief",
+              "value": "={{ JSON.stringify($json.executiveBrief) }}"
+            },
+            {
+              "name": "reliabilityScore",
+              "value": "={{ $json.metadata.reliabilityScore }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.analytics.processingTime }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 4.1
+    },
+    {
+      "id": "send-notification",
+      "name": "Send Completion Notification",
+      "type": "n8n-nodes-base.slack",
+      "position": [2040, 550],
+      "parameters": {
+        "operation": "post",
+        "channel": "#research-reports",
+        "text": "=🔬 *Multi-Agent Research Complete!*\n\n*Topic:* {{ $json.metadata.topic }}\n*Format:* {{ $json.metadata.format }}\n*Reliability Score:* {{ $json.metadata.reliabilityScore }}/100\n\n*Stats:*\n• Word Count: {{ $json.analytics.wordCount }}\n• Sources: {{ $json.metadata.totalSources }}\n• Agents Used: {{ $json.metadata.agentsUsed.length }}\n• Sections: {{ $json.analytics.sectionCount }}\n\n*Key Themes:*\n{{ $json.metadata.keyThemes.slice(0, 3).map(t => '• ' + t).join('\\n') }}\n\n*Top Insights:*\n{{ $json.executiveBrief.criticalInsights.map(i => '• ' + i).join('\\n') }}\n\n✅ Report ready for review!",
+        "attachments": []
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack_credentials",
+          "name": "Slack API"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "export-as-pdf",
+      "name": "Convert to PDF (Optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2240, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.html2pdf.app/v1/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"html\": \"<html><head><style>body{font-family:Arial;margin:40px;line-height:1.6}</style></head><body>{{ $('Prepare Final Research Report').item.json.finalReport }}</body></html>\",\n  \"filename\": \"research-report-{{ $now.format('yyyy-MM-dd') }}.pdf\",\n  \"options\": {\n    \"format\": \"A4\",\n    \"margin\": \"20mm\"\n  }\n}",
+        "options": {}
+      },
+      "typeVersion": 4.1
+    },
+    {
+      "id": "respond-to-user",
+      "name": "Respond with Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [2240, 550],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"🔬 Multi-agent research completed successfully!\",\n  \"data\": {\n    \"topic\": \"{{ $('Prepare Final Research Report').item.json.metadata.topic }}\",\n    \"format\": \"{{ $('Prepare Final Research Report').item.json.metadata.format }}\",\n    \"wordCount\": {{ $('Prepare Final Research Report').item.json.analytics.wordCount }},\n    \"reliabilityScore\": \"{{ $('Prepare Final Research Report').item.json.metadata.reliabilityScore }}\",\n    \"totalSources\": {{ $('Prepare Final Research Report').item.json.metadata.totalSources }},\n    \"agentsUsed\": {{ $('Prepare Final Research Report').item.json.metadata.agentsUsed.length }},\n    \"keyThemes\": {{ JSON.stringify($('Prepare Final Research Report').item.json.metadata.keyThemes) }},\n    \"report\": {\n      \"markdown\": \"{{ $('Prepare Final Research Report').item.json.formats.markdown.substring(0, 500) }}...\",\n      \"fullReport\": \"Available in database\"\n    },\n    \"executiveBrief\": {{ JSON.stringify($('Prepare Final Research Report').item.json.executiveBrief) }},\n    \"editorsNote\": \"{{ $('Prepare Final Research Report').item.json.editorsNote }}\"\n  },\n  \"timestamp\": \"{{ $('Prepare Final Research Report').item.json.analytics.processingTime }}\"\n}",
+        "options": {}
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Research Topic Form": {
+      "main": [[{ "node": "Initialize Research Settings", "type": "main", "index": 0 }]]
+    },
+    "Initialize Research Settings": {
+      "main": [[{ "node": "Research Coordinator Agent", "type": "main", "index": 0 }]]
+    },
+    "Research Coordinator Agent": {
+      "main": [
+        [
+          { "node": "Web Researcher Agent", "type": "main", "index": 0 },
+          { "node": "Academic Researcher Agent", "type": "main", "index": 0 },
+          { "node": "Data Analyst Agent", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Web Researcher Agent": {
+      "main": [[{ "node": "Merge All Research", "type": "main", "index": 0 }]]
+    },
+    "Academic Researcher Agent": {
+      "main": [[{ "node": "Merge All Research", "type": "main", "index": 1 }]]
+    },
+    "Data Analyst Agent": {
+      "main": [[{ "node": "Merge All Research", "type": "main", "index": 2 }]]
+    },
+    "Merge All Research": {
+      "main": [[{ "node": "Research Synthesis Agent", "type": "main", "index": 0 }]]
+    },
+    "Research Synthesis Agent": {
+      "main": [[{ "node": "Fact-Checker Agent", "type": "main", "index": 0 }]]
+    },
+    "Fact-Checker Agent": {
+      "main": [[{ "node": "Research Writer Agent", "type": "main", "index": 0 }]]
+    },
+    "Research Writer Agent": {
+      "main": [[{ "node": "Editor Agent", "type": "main", "index": 0 }]]
+    },
+    "Editor Agent": {
+      "main": [[{ "node": "Prepare Final Research Report", "type": "main", "index": 0 }]]
+    },
+    "Prepare Final Research Report": {
+      "main": [
+        [
+          { "node": "Save to Research Database", "type": "main", "index": 0 },
+          { "node": "Send Completion Notification", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Save to Research Database": {
+      "main": [[{ "node": "Convert to PDF (Optional)", "type": "main", "index": 0 }]]
+    },
+    "Send Completion Notification": {
+      "main": [[{ "node": "Respond with Report", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "multi-agent-research-v1-2025",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "ai-agents"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "multi-agent"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "research"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "4",
+      "name": "orchestration"
+    }
+  ]
+}
