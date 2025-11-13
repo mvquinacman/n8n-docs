@@ -23,8 +23,8 @@ n8n-playground/
 │   ├── RAG Agent Chatbot for Document Interaction.json
 │   ├── RAG_Agent_Chatbot_README.md
 │   └── RAG_Agent_Chatbot_QUICKSTART.md
-├── social-media-agent/ (example - future workflow)
-│   ├── workflow.json
+├── facebook-ai-news-bot/
+│   ├── Facebook AI News Bot.json
 │   ├── README.md
 │   └── QUICKSTART.md
 └── (more workflows...)
@@ -48,6 +48,27 @@ A comprehensive Retrieval-Augmented Generation (RAG) chatbot workflow that enabl
 **Quick Start:** See [`rag-agent-chatbot/RAG_Agent_Chatbot_QUICKSTART.md`](./rag-agent-chatbot/RAG_Agent_Chatbot_QUICKSTART.md)
 
 **Documentation:** See [`rag-agent-chatbot/RAG_Agent_Chatbot_README.md`](./rag-agent-chatbot/RAG_Agent_Chatbot_README.md)
+
+---
+
+### 2. Facebook AI News Bot (`facebook-ai-news-bot/`)
+
+An automated social media bot that monitors AI-related subreddits, generates engaging content using AI, and automatically posts to your Facebook page.
+
+**Location:** [`facebook-ai-news-bot/`](./facebook-ai-news-bot/)
+
+**Features:**
+- Monitors 8 AI-focused subreddits (r/artificial, r/MachineLearning, etc.)
+- Fetches trending posts every 6 hours
+- AI-powered content generation with GPT-4o-mini
+- Automatic Facebook page posting
+- Quality filtering (50+ upvotes)
+- Hashtag generation and engagement optimization
+- Zero manual intervention required
+
+**Quick Start:** See [`facebook-ai-news-bot/QUICKSTART.md`](./facebook-ai-news-bot/QUICKSTART.md)
+
+**Documentation:** See [`facebook-ai-news-bot/README.md`](./facebook-ai-news-bot/README.md)
 
 ---
 
