@@ -1,0 +1,671 @@
+{
+  "name": "Facebook AI News Bot - Reddit to Facebook",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger - Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "Runs every 6 hours to fetch fresh AI news"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "subreddit-list",
+              "name": "subreddits",
+              "value": "=[\n  \"artificial\",\n  \"MachineLearning\",\n  \"OpenAI\",\n  \"ArtificialIntelligence\",\n  \"ChatGPT\",\n  \"LocalLLaMA\",\n  \"StableDiffusion\",\n  \"singularity\"\n]",
+              "type": "array"
+            },
+            {
+              "id": "post-limit",
+              "name": "limit",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "time-filter",
+              "name": "time_filter",
+              "value": "day",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "configure-subreddits",
+      "name": "Configure AI Subreddits",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Define which subreddits to monitor for AI news"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "current-subreddit",
+              "name": "current_subreddit",
+              "value": "={{ $json.subreddits[$index] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "loop-subreddits",
+      "name": "Loop Through Subreddits",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.reddit.com/r/{{ $json.current_subreddit }}/hot.json?limit={{ $json.limit }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "fetch-reddit-posts",
+      "name": "Fetch Hot Posts from Reddit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ],
+      "notes": "Fetches hot posts from each subreddit",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "reddit-api",
+          "name": "Reddit API (User-Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.children",
+        "options": {}
+      },
+      "id": "split-posts",
+      "name": "Split Reddit Posts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "post-title",
+              "name": "title",
+              "value": "={{ $json.data.title }}",
+              "type": "string"
+            },
+            {
+              "id": "post-url",
+              "name": "url",
+              "value": "={{ $json.data.url }}",
+              "type": "string"
+            },
+            {
+              "id": "post-selftext",
+              "name": "content",
+              "value": "={{ $json.data.selftext || 'Link post - no text content' }}",
+              "type": "string"
+            },
+            {
+              "id": "post-score",
+              "name": "upvotes",
+              "value": "={{ $json.data.score }}",
+              "type": "number"
+            },
+            {
+              "id": "post-subreddit",
+              "name": "subreddit",
+              "value": "={{ $json.data.subreddit }}",
+              "type": "string"
+            },
+            {
+              "id": "post-permalink",
+              "name": "reddit_link",
+              "value": "=https://reddit.com{{ $json.data.permalink }}",
+              "type": "string"
+            },
+            {
+              "id": "post-created",
+              "name": "created_utc",
+              "value": "={{ $json.data.created_utc }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-post-data",
+      "name": "Extract Post Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "min-upvotes",
+              "leftValue": "={{ $json.upvotes }}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "not-removed",
+              "leftValue": "={{ $json.content }}",
+              "rightValue": "[removed]",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-quality-posts",
+      "name": "Filter Quality Posts",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "notes": "Only process posts with 50+ upvotes"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "aggregate-posts",
+      "name": "Aggregate Top Posts",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aggregated-data",
+              "name": "reddit_posts",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-for-ai",
+      "name": "Prepare Data for AI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "system-prompt",
+              "name": "system_prompt",
+              "value": "You are an AI news curator and content creator. Your job is to analyze trending AI news from Reddit and create engaging, informative Facebook posts.\n\nGuidelines:\n1. Write in an engaging, conversational tone\n2. Highlight the most interesting or important AI developments\n3. Keep posts concise (150-250 words)\n4. Include relevant hashtags (#AI #ArtificialIntelligence #MachineLearning #Tech)\n5. Add a call-to-action or question to encourage engagement\n6. Cite the source subreddit when relevant\n7. Focus on news that would interest a general tech-savvy audience\n8. Make it shareable and viral-worthy",
+              "type": "string"
+            },
+            {
+              "id": "user-prompt",
+              "name": "user_prompt",
+              "value": "=Based on these trending AI posts from Reddit:\n\n{{ $json.reddit_posts.map((post, i) => `${i+1}. [r/${post.subreddit}] ${post.title}\\n   Upvotes: ${post.upvotes}\\n   Link: ${post.reddit_link}\\n   Summary: ${post.content.substring(0, 200)}...\\n`).join('\\n') }}\n\nCreate an engaging Facebook post about the most interesting AI development. Include:\n- A catchy opening\n- Key insights or implications\n- Relevant hashtags\n- A question or call-to-action\n- Keep it under 250 words",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-ai-prompt",
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI GPT-4o-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.user_prompt }}",
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "ai-agent",
+      "name": "Generate Facebook Post",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "generated-post",
+              "name": "facebook_post",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            },
+            {
+              "id": "post-timestamp",
+              "name": "generated_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "source-count",
+              "name": "source_posts_count",
+              "value": "={{ $('Aggregate Top Posts').first().json.reddit_posts.length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": false
+      },
+      "id": "extract-generated-post",
+      "name": "Extract Generated Post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "pageId": "={{ $('Facebook Page Config').item.json.page_id }}",
+        "text": "={{ $json.facebook_post }}",
+        "additionalFields": {}
+      },
+      "id": "post-to-facebook",
+      "name": "Post to Facebook Page",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        300
+      ],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "facebook-credentials",
+          "name": "Facebook Graph API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "page-id",
+              "name": "page_id",
+              "value": "YOUR_FACEBOOK_PAGE_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "facebook-config",
+      "name": "Facebook Page Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        300
+      ],
+      "notes": "Configure your Facebook Page ID here"
+    },
+    {
+      "parameters": {
+        "content": "## Facebook AI News Bot\n\n### Workflow Overview:\n1. **Schedule**: Runs every 6 hours\n2. **Reddit Fetch**: Gets hot AI posts from multiple subreddits\n3. **Filter**: Only quality posts (50+ upvotes)\n4. **AI Generation**: Creates engaging Facebook content\n5. **Facebook Post**: Publishes to your page\n\n### AI Subreddits Monitored:\n- r/artificial\n- r/MachineLearning\n- r/OpenAI\n- r/ArtificialIntelligence\n- r/ChatGPT\n- r/LocalLLaMA\n- r/StableDiffusion\n- r/singularity\n\n### Required Setup:\n1. Reddit API credentials (User-Agent header)\n2. OpenAI API key\n3. Facebook Page Access Token\n4. Facebook Page ID",
+        "height": 520,
+        "width": 420,
+        "color": 4
+      },
+      "id": "sticky-note-overview",
+      "name": "Sticky Note - Workflow Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Reddit Fetching\nGets hot posts from AI subreddits →",
+        "height": 160,
+        "width": 560,
+        "color": 7
+      },
+      "id": "sticky-note-reddit",
+      "name": "Sticky Note - Reddit Section",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### AI Content Generation\nGenerates Facebook-ready posts →",
+        "height": 160,
+        "width": 480,
+        "color": 7
+      },
+      "id": "sticky-note-ai",
+      "name": "Sticky Note - AI Section",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2180,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Facebook Publishing\nPosts to your Facebook page →",
+        "height": 160,
+        "width": 280,
+        "color": 7
+      },
+      "id": "sticky-note-facebook",
+      "name": "Sticky Note - Facebook Section",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2840,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger - Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Configure AI Subreddits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure AI Subreddits": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Subreddits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Subreddits": {
+      "main": [
+        [
+          {
+            "node": "Fetch Hot Posts from Reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Hot Posts from Reddit": {
+      "main": [
+        [
+          {
+            "node": "Split Reddit Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Reddit Posts": {
+      "main": [
+        [
+          {
+            "node": "Extract Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Post Data": {
+      "main": [
+        [
+          {
+            "node": "Filter Quality Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Quality Posts": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Top Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Top Posts": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data for AI": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Facebook Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Generated Post": {
+      "main": [
+        [
+          {
+            "node": "Facebook Page Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Page Config": {
+      "main": [
+        [
+          {
+            "node": "Post to Facebook Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "facebook-ai-news-bot-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "facebook-ai-news-bot"
+  },
+  "id": "facebook-ai-news-bot",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "AI"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "Social Media"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "Reddit"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "4",
+      "name": "Facebook"
+    }
+  ]
+}
