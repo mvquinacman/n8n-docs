@@ -1,0 +1,583 @@
+{
+  "name": "RAG Agent Chatbot for Document Interaction",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-ingestion",
+      "name": "When clicking 'Execute Workflow' - Document Upload",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "file-path-1",
+              "name": "file_path",
+              "value": "/path/to/your/document.pdf",
+              "type": "string"
+            },
+            {
+              "id": "file-name-1",
+              "name": "file_name",
+              "value": "sample-document.pdf",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-document-path",
+      "name": "Set Document Path",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        240
+      ],
+      "notes": "Specify the path to your document file (PDF, DOCX, TXT, MD)"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "filePath": "={{ $json.file_path }}",
+        "options": {}
+      },
+      "id": "read-binary-file",
+      "name": "Read Binary File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        680,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "extract-from-file",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        900,
+        240
+      ],
+      "notes": "Supports PDF, DOCX, TXT, MD, and other text formats"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "metadata-filename",
+              "name": "document_name",
+              "value": "={{ $('Set Document Path').item.json.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata-timestamp",
+              "name": "upload_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata-content",
+              "name": "content",
+              "value": "={{ $json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "add-metadata",
+      "name": "Add Document Metadata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "vector-store-insert",
+      "name": "Insert into Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        240
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "qdrant-credentials",
+          "name": "Qdrant API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "embeddings-openai-insert",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        440
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "auto",
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.content }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "document_name",
+                "value": "={{ $json.document_name }}"
+              },
+              {
+                "name": "upload_timestamp",
+                "value": "={{ $json.upload_timestamp }}"
+              },
+              {
+                "name": "file_type",
+                "value": "={{ $json.document_name.split('.').pop() }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "default-data-loader",
+      "name": "Document Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 2000,
+        "chunkOverlap": 200
+      },
+      "id": "text-splitter",
+      "name": "Recursive Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        840
+      ],
+      "notes": "Splits documents into chunks of 2000 characters with 200 overlap"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "chat-trigger",
+      "name": "Chat Trigger - Ask Questions",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        1200
+      ],
+      "webhookId": "rag-chatbot-webhook"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful AI assistant with access to a knowledge base of documents. When answering questions:\n\n1. Use the retrieved document context to provide accurate, detailed answers\n2. Always cite your sources by mentioning the document name\n3. If the information is not in the documents, clearly state that\n4. Be conversational and helpful\n5. If asked to summarize, provide clear and concise summaries\n6. For complex questions, break down your answer into clear points\n\nRemember to always ground your answers in the provided document context."
+        }
+      },
+      "id": "ai-agent",
+      "name": "RAG AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        460,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1000
+        }
+      },
+      "id": "openai-chat-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        460,
+        1400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionKey": "={{ $json.sessionId }}"
+      },
+      "id": "window-buffer-memory",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        600,
+        1400
+      ],
+      "notes": "Maintains conversation context across multiple messages"
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "prompt": "={{ $('Chat Trigger - Ask Questions').item.json.chatInput }}",
+        "topK": 5,
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "vector-store-retrieve",
+      "name": "Retrieve from Qdrant",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        740,
+        1400
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "qdrant-credentials",
+          "name": "Qdrant API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "embeddings-openai-retrieve",
+      "name": "OpenAI Embeddings for Search",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        880,
+        1600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "document_retriever",
+        "description": "Retrieves relevant information from the document knowledge base. Use this tool when you need to answer questions about the uploaded documents. The tool performs semantic search and returns the most relevant document chunks.",
+        "returnDirectly": false
+      },
+      "id": "vector-store-tool",
+      "name": "Vector Store Retrieval Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1,
+      "position": [
+        880,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## RAG Agent Chatbot Workflow\n\n### Part 1: Document Ingestion (Top Section)\n**Purpose**: Upload and index documents into vector database\n\n**Steps**:\n1. Click 'Execute Workflow' button\n2. Set your document path in 'Set Document Path' node\n3. Workflow will:\n   - Read the file\n   - Extract text content\n   - Split into chunks\n   - Generate embeddings\n   - Store in Qdrant vector database\n\n**Supported Formats**: PDF, DOCX, TXT, MD, CSV, and more\n\n---\n\n### Part 2: Chat Interface (Bottom Section)\n**Purpose**: Interactive Q&A with your documents\n\n**How to Use**:\n1. Click the 'Chat' button\n2. Ask questions about your documents\n3. The AI agent will:\n   - Search the vector database\n   - Retrieve relevant context\n   - Generate informed responses\n   - Cite sources\n\n**Features**:\n- Semantic search across all documents\n- Conversation memory\n- Source citations\n- Multi-turn conversations",
+        "height": 680,
+        "width": 520,
+        "color": 4
+      },
+      "id": "sticky-note-instructions",
+      "name": "Sticky Note - Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup Instructions\n\n### 1. Qdrant Setup\n- Create a free account at https://cloud.qdrant.io\n- Create a collection named 'documents' with:\n  - Vector size: 1536 (for OpenAI text-embedding-3-small)\n  - Distance: Cosine\n- Get your API key and cluster URL\n\n### 2. OpenAI Setup\n- Get API key from https://platform.openai.com\n- Add credentials in n8n\n\n### 3. Credentials Configuration\n- Add 'Qdrant API' credentials\n- Add 'OpenAI API' credentials\n- Update credential IDs in all nodes",
+        "height": 420,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-note-setup",
+      "name": "Sticky Note - Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Document Ingestion Pipeline\nUpload documents here →",
+        "height": 240,
+        "width": 1520,
+        "color": 7
+      },
+      "id": "sticky-note-ingestion",
+      "name": "Sticky Note - Ingestion Section",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Chat Interface\nInteract with your documents here →",
+        "height": 540,
+        "width": 920,
+        "color": 7
+      },
+      "id": "sticky-note-chat",
+      "name": "Sticky Note - Chat Section",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        1100
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute Workflow' - Document Upload": {
+      "main": [
+        [
+          {
+            "node": "Set Document Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Document Path": {
+      "main": [
+        [
+          {
+            "node": "Read Binary File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Binary File": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Add Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Document Metadata": {
+      "main": [
+        [
+          {
+            "node": "Insert into Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert into Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert into Qdrant Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger - Ask Questions": {
+      "main": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Retrieval Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve from Qdrant": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Retrieval Tool",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings for Search": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Retrieve from Qdrant",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rag-agent-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "rag-agent-chatbot-instance"
+  },
+  "id": "rag-agent-chatbot-workflow",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "AI"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "RAG"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "Chatbot"
+    }
+  ]
+}
