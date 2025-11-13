@@ -310,6 +310,14 @@ All automation templates in this repository were found online and are uploaded h
 | 🔍 Perplexity Research to HTML: AI-Powered Content Creation | Transforms Perplexity AI research into HTML content for AI-powered content creation. | Content Creation, AI Research | [🔍 Perplexity Research to HTML_ AI-Powered Content Creation.txt](./AI_Research_RAG_and_Data_Analysis/%F0%9F%94%8D%20Perplexity%20Research%20to%20HTML_%20AI-Powered%20Content%20Creation.json) |
 
 
+### Content Creation & Marketing
+
+| Title | Description | Department | Link |
+|-------|-------------|------------|------|
+| 🚀 Complete Content Creation Pipeline - Research to Multi-Platform Publishing | A comprehensive end-to-end workflow that automates the entire content creation process: AI-powered research & keyword analysis, SEO-optimized content generation, AI image creation (DALL-E), quality checks, and automated publishing to multiple platforms (WordPress, Medium, LinkedIn, Twitter/X). Includes analytics tracking and Slack notifications. Perfect showcase of advanced n8n capabilities! | Marketing/Content/AI | [Link to Template](n8n-playground/Complete%20Content%20Creation%20Pipeline%20-%20Research%20to%20Multi-Platform%20Publishing.json) |
+
+---
+
 ### **Other**
 
 - ALL_unique_nodes.txt (node reference)

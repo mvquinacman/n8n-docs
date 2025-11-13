@@ -1,0 +1,890 @@
+{
+  "id": "CompleteContentPipeline2025",
+  "meta": {
+    "instanceId": "complete-content-creation-pipeline-v1"
+  },
+  "name": "Complete Content Creation Pipeline - Research to Multi-Platform Publishing",
+  "tags": ["content-creation", "ai", "seo", "multi-platform", "marketing"],
+  "nodes": [
+    {
+      "id": "trigger-form",
+      "name": "Content Topic Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [-1200, 400],
+      "webhookId": "content-creation-pipeline-webhook",
+      "parameters": {
+        "path": "content-creation-pipeline",
+        "formTitle": "🚀 Complete Content Creation Pipeline",
+        "formDescription": "Enter your content topic and let AI create, optimize, and publish across multiple platforms!",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Content Topic / Keywords",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "e.g., AI automation tools for small businesses"
+            },
+            {
+              "fieldLabel": "Content Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Blog Post (1500-2000 words)" },
+                  { "option": "Tutorial (2000-3000 words)" },
+                  { "option": "How-To Guide (1000-1500 words)" },
+                  { "option": "Listicle (800-1200 words)" },
+                  { "option": "Case Study (2500-3500 words)" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "e.g., Small business owners, Developers, Marketers"
+            },
+            {
+              "fieldLabel": "Tone of Voice",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Professional" },
+                  { "option": "Casual & Friendly" },
+                  { "option": "Technical" },
+                  { "option": "Conversational" },
+                  { "option": "Authoritative" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Publishing Platforms",
+              "fieldType": "multiselect",
+              "fieldOptions": {
+                "values": [
+                  { "option": "WordPress" },
+                  { "option": "Medium" },
+                  { "option": "LinkedIn" },
+                  { "option": "Twitter/X" },
+                  { "option": "Dev.to" }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "sticky-input",
+      "name": "📋 INPUT",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1260, 280],
+      "parameters": {
+        "color": 7,
+        "width": 280,
+        "height": 320,
+        "content": "## 📋 Content Input\n\nUser provides:\n- Topic/Keywords\n- Content type\n- Target audience\n- Tone of voice\n- Publishing platforms"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "settings-node",
+      "name": "Initialize Settings",
+      "type": "n8n-nodes-base.set",
+      "position": [-900, 400],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "topic",
+              "type": "string",
+              "value": "={{ $json['Content Topic / Keywords'] }}"
+            },
+            {
+              "id": "2",
+              "name": "contentType",
+              "type": "string",
+              "value": "={{ $json['Content Type'] }}"
+            },
+            {
+              "id": "3",
+              "name": "audience",
+              "type": "string",
+              "value": "={{ $json['Target Audience'] }}"
+            },
+            {
+              "id": "4",
+              "name": "tone",
+              "type": "string",
+              "value": "={{ $json['Tone of Voice'] }}"
+            },
+            {
+              "id": "5",
+              "name": "platforms",
+              "type": "string",
+              "value": "={{ $json['Publishing Platforms'] }}"
+            },
+            {
+              "id": "6",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.3
+    },
+    {
+      "id": "research-keyword",
+      "name": "Keyword Research",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-600, 300],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an SEO expert. Analyze this topic: {{ $json.topic }}\n\nProvide:\n1. Primary keyword (exact match)\n2. 5-7 secondary keywords\n3. 10-15 LSI (Latent Semantic Indexing) keywords\n4. Search intent (informational/navigational/transactional)\n5. Estimated search volume category (high/medium/low)\n6. Competition level (high/medium/low)\n7. 3-5 related topics worth exploring\n\nFormat as JSON:\n{\n  \"primaryKeyword\": \"...\",\n  \"secondaryKeywords\": [...],\n  \"lsiKeywords\": [...],\n  \"searchIntent\": \"...\",\n  \"searchVolume\": \"...\",\n  \"competition\": \"...\",\n  \"relatedTopics\": [...]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-research",
+      "name": "🔍 RESEARCH",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-660, 180],
+      "parameters": {
+        "color": 4,
+        "width": 280,
+        "height": 420,
+        "content": "## 🔍 Research Phase\n\nAI-powered:\n- Keyword research\n- SEO analysis\n- Competitor insights\n- Topic clustering"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "research-competitors",
+      "name": "Competitor Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-600, 500],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a content strategist. For the topic: {{ $('Initialize Settings').item.json.topic }}\n\nAnalyze what makes great content in this niche:\n1. Common article structures (what works best)\n2. Key points that top articles cover\n3. Unique angles to differentiate our content\n4. Content gaps (what's missing in existing content)\n5. Recommended word count\n6. Multimedia recommendations (images, videos, infographics)\n\nFormat as JSON:\n{\n  \"bestStructures\": [...],\n  \"keyPoints\": [...],\n  \"uniqueAngles\": [...],\n  \"contentGaps\": [...],\n  \"recommendedWordCount\": number,\n  \"multimediaRecommendations\": [...]\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "merge-research",
+      "name": "Merge Research Data",
+      "type": "n8n-nodes-base.merge",
+      "position": [-300, 400],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "generate-outline",
+      "name": "Generate Content Outline",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [-100, 400],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a professional content writer. Create a detailed SEO-optimized outline for:\n\nTopic: {{ $('Initialize Settings').item.json.topic }}\nContent Type: {{ $('Initialize Settings').item.json.contentType }}\nAudience: {{ $('Initialize Settings').item.json.audience }}\nTone: {{ $('Initialize Settings').item.json.tone }}\n\nPrimary Keyword: {{ $('Keyword Research').item.json.message.content.primaryKeyword }}\nSecondary Keywords: {{ $('Keyword Research').item.json.message.content.secondaryKeywords.join(', ') }}\n\nContent Strategy:\n{{ JSON.stringify($('Competitor Analysis').item.json.message.content, null, 2) }}\n\nCreate:\n1. Compelling headline (H1) - include primary keyword\n2. Meta description (150-160 characters)\n3. Introduction (hook, problem, solution preview)\n4. Main sections (H2) with subsections (H3)\n5. Conclusion with CTA\n6. Suggested internal/external links\n7. FAQ section (3-5 questions)\n\nFormat as JSON:\n{\n  \"headline\": \"...\",\n  \"metaDescription\": \"...\",\n  \"urlSlug\": \"...\",\n  \"introduction\": \"...\",\n  \"sections\": [\n    {\n      \"heading\": \"...\",\n      \"subheadings\": [...],\n      \"keyPoints\": [...],\n      \"keywordsToInclude\": [...]\n    }\n  ],\n  \"conclusion\": \"...\",\n  \"callToAction\": \"...\",\n  \"faqQuestions\": [\n    {\"question\": \"...\", \"answerOutline\": \"...\"}\n  ],\n  \"suggestedLinks\": {\n    \"internal\": [...],\n    \"external\": [...]\n  },\n  \"imagePrompt\": \"A detailed prompt for the featured image\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 3000
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-generation",
+      "name": "✍️ CONTENT GENERATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-160, 280],
+      "parameters": {
+        "color": 6,
+        "width": 280,
+        "height": 320,
+        "content": "## ✍️ Content Generation\n\nAI creates:\n- SEO-optimized outline\n- Full article content\n- Meta descriptions\n- FAQ section"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "generate-content",
+      "name": "Generate Full Article",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [150, 400],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert content writer. Write a complete, engaging article based on this outline:\n\n{{ JSON.stringify($json.message.content, null, 2) }}\n\nTopic: {{ $('Initialize Settings').item.json.topic }}\nAudience: {{ $('Initialize Settings').item.json.audience }}\nTone: {{ $('Initialize Settings').item.json.tone }}\n\nGuidelines:\n- Write in {{ $('Initialize Settings').item.json.tone }} tone\n- Target word count: {{ $('Competitor Analysis').item.json.message.content.recommendedWordCount }} words\n- Use HTML formatting (h2, h3, p, strong, em, ul, ol, li)\n- Include primary keyword naturally (3-5 times)\n- Sprinkle secondary keywords throughout\n- Write engaging, original content\n- Add practical examples and actionable tips\n- Use short paragraphs (2-3 sentences)\n- Include transition words\n- Write compelling subheadings\n- End with a strong CTA\n\nDO NOT use markdown. Use HTML only.\n\nReturn the complete article in HTML format."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 4000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "seo-analysis",
+      "name": "SEO Quality Check",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [400, 400],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an SEO analyst. Analyze this article for SEO quality:\n\nTitle: {{ $('Generate Content Outline').item.json.message.content.headline }}\nContent: {{ $json.message.content.substring(0, 3000) }}...\nPrimary Keyword: {{ $('Keyword Research').item.json.message.content.primaryKeyword }}\n\nCheck:\n1. Keyword density (should be 1-2%)\n2. Readability score estimate (Flesch reading ease)\n3. Title tag optimization\n4. Meta description quality\n5. Heading structure (H1, H2, H3)\n6. Content length\n7. Internal/external linking suggestions\n8. Image alt text recommendations\n\nProvide:\n- SEO score (0-100)\n- Issues found\n- Recommendations\n\nFormat as JSON:\n{\n  \"seoScore\": number,\n  \"keywordDensity\": \"...\",\n  \"readabilityScore\": number,\n  \"issues\": [...],\n  \"recommendations\": [...],\n  \"passesCheck\": boolean\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        },
+        "jsonOutput": true
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-seo",
+      "name": "🎯 SEO OPTIMIZATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [340, 280],
+      "parameters": {
+        "color": 5,
+        "width": 280,
+        "height": 320,
+        "content": "## 🎯 SEO Optimization\n\n- Keyword density check\n- Readability analysis\n- Meta tag validation\n- SEO score (0-100)"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "generate-featured-image",
+      "name": "Generate Featured Image",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [650, 300],
+      "parameters": {
+        "resource": "image",
+        "prompt": "={{ $('Generate Content Outline').item.json.message.content.imagePrompt }}. Professional, high-quality, suitable for blog featured image. Style: modern, clean, professional photography.",
+        "options": {
+          "size": "1792x1024",
+          "quality": "hd",
+          "style": "natural"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "generate-social-images",
+      "name": "Generate Social Media Images",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [650, 500],
+      "parameters": {
+        "resource": "image",
+        "prompt": "={{ $('Generate Content Outline').item.json.message.content.imagePrompt }}. Optimized for social media sharing. Bold text overlay with article title: {{ $('Generate Content Outline').item.json.message.content.headline }}. Style: eye-catching, vibrant, shareable.",
+        "options": {
+          "size": "1024x1024",
+          "quality": "hd",
+          "style": "vivid"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credentials",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-images",
+      "name": "🎨 IMAGE GENERATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [590, 180],
+      "parameters": {
+        "color": 3,
+        "width": 280,
+        "height": 420,
+        "content": "## 🎨 Image Generation\n\nAI-generated:\n- Featured image (1792x1024)\n- Social media image (1024x1024)\n- Multiple variants"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "merge-content-images",
+      "name": "Merge Content & Images",
+      "type": "n8n-nodes-base.merge",
+      "position": [900, 400],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "prepare-content-data",
+      "name": "Prepare Publishing Data",
+      "type": "n8n-nodes-base.code",
+      "position": [1100, 400],
+      "parameters": {
+        "jsCode": "// Prepare all content for publishing\nconst outline = $('Generate Content Outline').item.json.message.content;\nconst fullContent = $('Generate Full Article').item.json.message.content;\nconst seoData = $('SEO Quality Check').item.json.message.content;\nconst settings = $('Initialize Settings').item.json;\nconst keywords = $('Keyword Research').item.json.message.content;\n\n// Prepare complete article with FAQ\nlet completeArticle = fullContent;\n\n// Add FAQ section if exists\nif (outline.faqQuestions && outline.faqQuestions.length > 0) {\n  completeArticle += '\\n\\n<h2>Frequently Asked Questions</h2>\\n';\n  outline.faqQuestions.forEach(faq => {\n    completeArticle += `<h3>${faq.question}</h3>\\n<p>${faq.answerOutline}</p>\\n`;\n  });\n}\n\n// Prepare for different platforms\nreturn [{\n  json: {\n    // Common fields\n    title: outline.headline,\n    content: completeArticle,\n    excerpt: outline.metaDescription,\n    slug: outline.urlSlug,\n    \n    // SEO data\n    metaDescription: outline.metaDescription,\n    primaryKeyword: keywords.primaryKeyword,\n    keywords: keywords.secondaryKeywords.join(', '),\n    seoScore: seoData.seoScore,\n    \n    // Images\n    featuredImage: $('Generate Featured Image').item.binary.data,\n    socialImage: $('Generate Social Media Images').item.binary.data,\n    \n    // Publishing info\n    platforms: settings.platforms,\n    topic: settings.topic,\n    audience: settings.audience,\n    tone: settings.tone,\n    \n    // Twitter thread (first 280 chars + link)\n    twitterThread: [\n      `${outline.headline}\\n\\n🧵 Thread (1/${Math.ceil(completeArticle.length / 250)})`,\n      outline.introduction.substring(0, 250) + '...',\n      `Read the full article: [LINK]`\n    ],\n    \n    // LinkedIn post\n    linkedinPost: `${outline.headline}\\n\\n${outline.introduction}\\n\\n${outline.sections[0].keyPoints.slice(0, 3).map(p => '• ' + p).join('\\n')}\\n\\nRead more: [LINK]`,\n    \n    // Analytics\n    timestamp: settings.timestamp,\n    publishedUrls: {}\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "sticky-publishing",
+      "name": "📤 MULTI-PLATFORM PUBLISHING",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1040, 120],
+      "parameters": {
+        "color": 2,
+        "width": 900,
+        "height": 600,
+        "content": "## 📤 Multi-Platform Publishing\n\nPublish to:\n✅ WordPress\n✅ Medium\n✅ LinkedIn\n✅ Twitter/X\n✅ Dev.to (optional)"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "check-wordpress",
+      "name": "Publish to WordPress?",
+      "type": "n8n-nodes-base.if",
+      "position": [1300, 200],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "WordPress"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "publish-wordpress",
+      "name": "Publish to WordPress",
+      "type": "n8n-nodes-base.wordpress",
+      "position": [1500, 200],
+      "parameters": {
+        "operation": "create",
+        "title": "={{ $json.title }}",
+        "content": "={{ $json.content }}",
+        "additionalFields": {
+          "excerpt": "={{ $json.excerpt }}",
+          "status": "draft",
+          "categories": [],
+          "tags": "={{ $json.keywords.split(',').map(k => k.trim()) }}"
+        }
+      },
+      "credentials": {
+        "wordpressApi": {
+          "id": "wordpress_credentials",
+          "name": "WordPress API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "upload-wp-image",
+      "name": "Upload WordPress Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1700, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Publish to WordPress').item.json._links.self[0].href.replace('/posts/', '/media') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "featuredImage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Disposition",
+              "value": "attachment; filename=\"featured-image.jpg\""
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "wordpressApi": {
+          "id": "wordpress_credentials",
+          "name": "WordPress API"
+        }
+      },
+      "typeVersion": 4.1
+    },
+    {
+      "id": "check-medium",
+      "name": "Publish to Medium?",
+      "type": "n8n-nodes-base.if",
+      "position": [1300, 350],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "Medium"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "publish-medium",
+      "name": "Publish to Medium",
+      "type": "n8n-nodes-base.medium",
+      "position": [1500, 350],
+      "parameters": {
+        "operation": "create",
+        "title": "={{ $json.title }}",
+        "content": "={{ $json.content }}",
+        "contentFormat": "html",
+        "additionalFields": {
+          "tags": "={{ $json.keywords.split(',').slice(0, 5).map(k => k.trim()) }}",
+          "publishStatus": "draft"
+        }
+      },
+      "credentials": {
+        "mediumOAuth2Api": {
+          "id": "medium_credentials",
+          "name": "Medium OAuth2 API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "check-linkedin",
+      "name": "Publish to LinkedIn?",
+      "type": "n8n-nodes-base.if",
+      "position": [1300, 500],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "LinkedIn"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "publish-linkedin",
+      "name": "Publish to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "position": [1500, 500],
+      "parameters": {
+        "operation": "createPost",
+        "text": "={{ $json.linkedinPost }}",
+        "additionalFields": {
+          "visibility": "PUBLIC"
+        }
+      },
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "linkedin_credentials",
+          "name": "LinkedIn OAuth2 API"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "check-twitter",
+      "name": "Publish to Twitter?",
+      "type": "n8n-nodes-base.if",
+      "position": [1300, 650],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "Twitter/X"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "publish-twitter",
+      "name": "Create Twitter Thread",
+      "type": "n8n-nodes-base.twitter",
+      "position": [1500, 650],
+      "parameters": {
+        "operation": "tweet",
+        "text": "={{ $json.twitterThread[0] }}"
+      },
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "twitter_credentials",
+          "name": "Twitter OAuth2 API"
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "merge-all-publications",
+      "name": "Merge Publication Results",
+      "type": "n8n-nodes-base.merge",
+      "position": [1800, 400],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "store-analytics",
+      "name": "Store in Analytics Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2000, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-analytics-database.com/api/content",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "name": "slug",
+              "value": "={{ $json.slug }}"
+            },
+            {
+              "name": "topic",
+              "value": "={{ $json.topic }}"
+            },
+            {
+              "name": "platforms",
+              "value": "={{ $json.platforms }}"
+            },
+            {
+              "name": "seoScore",
+              "value": "={{ $json.seoScore }}"
+            },
+            {
+              "name": "primaryKeyword",
+              "value": "={{ $json.primaryKeyword }}"
+            },
+            {
+              "name": "wordpressUrl",
+              "value": "={{ $('Publish to WordPress').item.json.link || '' }}"
+            },
+            {
+              "name": "mediumUrl",
+              "value": "={{ $('Publish to Medium').item.json.url || '' }}"
+            },
+            {
+              "name": "linkedinUrl",
+              "value": "={{ $('Publish to LinkedIn').item.json.id || '' }}"
+            },
+            {
+              "name": "twitterUrl",
+              "value": "={{ $('Create Twitter Thread').item.json.id_str || '' }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 4.1
+    },
+    {
+      "id": "sticky-analytics",
+      "name": "📊 ANALYTICS & TRACKING",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1940, 280],
+      "parameters": {
+        "color": 1,
+        "width": 280,
+        "height": 320,
+        "content": "## 📊 Analytics\n\n- Store all URLs\n- Track performance\n- UTM parameters\n- Database logging"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "send-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.slack",
+      "position": [2200, 400],
+      "parameters": {
+        "operation": "post",
+        "channel": "#content-published",
+        "text": "=🎉 *Content Published Successfully!*\n\n*Title:* {{ $('Prepare Publishing Data').item.json.title }}\n*Topic:* {{ $('Prepare Publishing Data').item.json.topic }}\n*SEO Score:* {{ $('Prepare Publishing Data').item.json.seoScore }}/100\n\n*Published to:*\n{{ $('Publish to WordPress').item.json.link ? '✅ WordPress: ' + $('Publish to WordPress').item.json.link : '' }}\n{{ $('Publish to Medium').item.json.url ? '✅ Medium: ' + $('Publish to Medium').item.json.url : '' }}\n{{ $('Publish to LinkedIn').item.json.id ? '✅ LinkedIn: Posted' : '' }}\n{{ $('Create Twitter Thread').item.json.id_str ? '✅ Twitter: Posted' : '' }}\n\n*Keywords:* {{ $('Prepare Publishing Data').item.json.primaryKeyword }}\n*Timestamp:* {{ $('Prepare Publishing Data').item.json.timestamp }}",
+        "attachments": []
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack_credentials",
+          "name": "Slack API"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "respond-success",
+      "name": "Respond to User",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [2400, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"🎉 Content created and published successfully!\",\n  \"data\": {\n    \"title\": \"{{ $('Prepare Publishing Data').item.json.title }}\",\n    \"seoScore\": {{ $('Prepare Publishing Data').item.json.seoScore }},\n    \"platforms\": \"{{ $('Prepare Publishing Data').item.json.platforms }}\",\n    \"urls\": {\n      \"wordpress\": \"{{ $('Publish to WordPress').item.json.link || 'Not published' }}\",\n      \"medium\": \"{{ $('Publish to Medium').item.json.url || 'Not published' }}\",\n      \"linkedin\": \"{{ $('Publish to LinkedIn').item.json.id ? 'Posted' : 'Not published' }}\",\n      \"twitter\": \"{{ $('Create Twitter Thread').item.json.id_str ? 'Posted' : 'Not published' }}\"\n    },\n    \"primaryKeyword\": \"{{ $('Prepare Publishing Data').item.json.primaryKeyword }}\",\n    \"wordCount\": {{ $('Prepare Publishing Data').item.json.content.split(' ').length }}\n  }\n}",
+        "options": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-notification",
+      "name": "✅ COMPLETE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [2140, 280],
+      "parameters": {
+        "color": 7,
+        "width": 420,
+        "height": 320,
+        "content": "## ✅ Completion\n\n- Slack notification\n- Email report (optional)\n- Return all URLs\n- Success metrics"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Content Topic Form": {
+      "main": [[{ "node": "Initialize Settings", "type": "main", "index": 0 }]]
+    },
+    "Initialize Settings": {
+      "main": [
+        [
+          { "node": "Keyword Research", "type": "main", "index": 0 },
+          { "node": "Competitor Analysis", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Keyword Research": {
+      "main": [[{ "node": "Merge Research Data", "type": "main", "index": 0 }]]
+    },
+    "Competitor Analysis": {
+      "main": [[{ "node": "Merge Research Data", "type": "main", "index": 1 }]]
+    },
+    "Merge Research Data": {
+      "main": [[{ "node": "Generate Content Outline", "type": "main", "index": 0 }]]
+    },
+    "Generate Content Outline": {
+      "main": [[{ "node": "Generate Full Article", "type": "main", "index": 0 }]]
+    },
+    "Generate Full Article": {
+      "main": [[{ "node": "SEO Quality Check", "type": "main", "index": 0 }]]
+    },
+    "SEO Quality Check": {
+      "main": [
+        [
+          { "node": "Generate Featured Image", "type": "main", "index": 0 },
+          { "node": "Generate Social Media Images", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Featured Image": {
+      "main": [[{ "node": "Merge Content & Images", "type": "main", "index": 0 }]]
+    },
+    "Generate Social Media Images": {
+      "main": [[{ "node": "Merge Content & Images", "type": "main", "index": 1 }]]
+    },
+    "Merge Content & Images": {
+      "main": [[{ "node": "Prepare Publishing Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Publishing Data": {
+      "main": [
+        [
+          { "node": "Publish to WordPress?", "type": "main", "index": 0 },
+          { "node": "Publish to Medium?", "type": "main", "index": 0 },
+          { "node": "Publish to LinkedIn?", "type": "main", "index": 0 },
+          { "node": "Publish to Twitter?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Publish to WordPress?": {
+      "main": [[{ "node": "Publish to WordPress", "type": "main", "index": 0 }]]
+    },
+    "Publish to WordPress": {
+      "main": [[{ "node": "Upload WordPress Image", "type": "main", "index": 0 }]]
+    },
+    "Upload WordPress Image": {
+      "main": [[{ "node": "Merge Publication Results", "type": "main", "index": 0 }]]
+    },
+    "Publish to Medium?": {
+      "main": [[{ "node": "Publish to Medium", "type": "main", "index": 0 }]]
+    },
+    "Publish to Medium": {
+      "main": [[{ "node": "Merge Publication Results", "type": "main", "index": 1 }]]
+    },
+    "Publish to LinkedIn?": {
+      "main": [[{ "node": "Publish to LinkedIn", "type": "main", "index": 0 }]]
+    },
+    "Publish to LinkedIn": {
+      "main": [[{ "node": "Merge Publication Results", "type": "main", "index": 2 }]]
+    },
+    "Publish to Twitter?": {
+      "main": [[{ "node": "Create Twitter Thread", "type": "main", "index": 0 }]]
+    },
+    "Create Twitter Thread": {
+      "main": [[{ "node": "Merge Publication Results", "type": "main", "index": 3 }]]
+    },
+    "Merge Publication Results": {
+      "main": [[{ "node": "Store in Analytics Database", "type": "main", "index": 0 }]]
+    },
+    "Store in Analytics Database": {
+      "main": [[{ "node": "Send Success Notification", "type": "main", "index": 0 }]]
+    },
+    "Send Success Notification": {
+      "main": [[{ "node": "Respond to User", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "complete-content-pipeline-v1-2025",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "1",
+      "name": "content-creation"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "2",
+      "name": "ai-automation"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "3",
+      "name": "seo"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "4",
+      "name": "multi-platform"
+    }
+  ]
+}
