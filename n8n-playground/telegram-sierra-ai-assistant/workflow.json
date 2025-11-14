@@ -140,7 +140,10 @@
       "notes": "Download voice file from Telegram"
     },
     {
-      "parameters": {},
+      "parameters": {
+        "operation": "transcribe",
+        "options": {}
+      },
       "id": "6e9669bc-5243-4eb4-b690-180d0e846ac6",
       "name": "Transcribe audio",
       "type": "n8n-nodes-base.openAi",
@@ -149,8 +152,49 @@
         208,
         208
       ],
-      "credentials": {},
       "notes": "Transcribe voice message using Whisper"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "extract-text-from-voice",
+              "name": "userMessage",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-chatid-voice",
+              "name": "chatId",
+              "value": "={{ $('Get audio').item.json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "extract-username-voice",
+              "name": "username",
+              "value": "={{ $('Get audio').item.json.message.from.username || $('Get audio').item.json.message.from.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "message-id-voice",
+              "name": "messageId",
+              "value": "={{ $('Get audio').item.json.message.message_id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Extract transcribed text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        416,
+        208
+      ],
+      "notes": "Extract transcribed text and prepare for agent"
     },
     {
       "parameters": {
@@ -171,7 +215,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are S.I.E.R.R.A, an advanced AI assistant integrated with Telegram. You have access to multiple tools and capabilities to help users with various tasks.\n\nYour capabilities include:\n- Accessing and searching Gmail\n- Reading and creating Google Calendar events  \n- Searching Notion databases\n- Performing calculations\n- Searching the web using SerpAPI\n- Generating AI responses using OpenAI\n- Storing information in memory\n\nAlways be helpful, concise, and professional. When using tools, explain what you're doing. If you need to use multiple tools to answer a question, do so systematically.\n\nCurrent user: {{ $json.username }}\nChat ID: {{ $json.chatId }}",
+        "text": "=You are S.I.E.R.R.A (Smart Intelligent Entity for Research and Response Automation), an advanced AI assistant integrated with Telegram. You have access to multiple tools and capabilities to help users with various tasks.\n\nYour capabilities include:\n- Accessing and searching Gmail\n- Sending emails via Gmail\n- Reading and creating Google Calendar events  \n- Searching Notion databases\n- Performing calculations\n- Searching the web using SerpAPI\n\nAlways be helpful, concise, and professional. When using tools, explain what you're doing. If you need to use multiple tools to answer a question, do so systematically.\n\nCurrent user: {{ $json.username }}\nChat ID: {{ $json.chatId }}",
         "options": {
           "systemMessage": "You are S.I.E.R.R.A (Smart Intelligent Entity for Research and Response Automation), a highly capable AI assistant."
         }
@@ -181,7 +225,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.6,
       "position": [
-        400,
+        656,
         112
       ],
       "notes": "Main AI Agent with system prompt"
@@ -199,14 +243,14 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        -176,
+        288,
         496
       ]
     },
     {
       "parameters": {
         "name": "gmail_search",
-        "description": "Search Gmail messages. Use this when the user asks about emails.",
+        "description": "Search Gmail messages. Use this when the user asks about emails, recent messages, or looking for specific email content.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "e59f3375-df60-48a7-b4d9-465e97c7a868",
@@ -214,7 +258,7 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        144,
+        432,
         512
       ],
       "notes": "Tool: Search Gmail"
@@ -222,7 +266,7 @@
     {
       "parameters": {
         "name": "gmail_send",
-        "description": "Send an email via Gmail. Use when user wants to send an email.",
+        "description": "Send an email via Gmail. Use when user wants to send an email. Requires recipient email, subject, and message body.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "7ea8c279-67e4-4436-b813-d8aa6befb341",
@@ -230,7 +274,7 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        288,
+        560,
         512
       ],
       "notes": "Tool: Send Gmail"
@@ -238,7 +282,7 @@
     {
       "parameters": {
         "name": "calendar_read",
-        "description": "Read Google Calendar events. Use when user asks about their schedule or meetings.",
+        "description": "Read Google Calendar events. Use when user asks about their schedule, meetings, or upcoming events.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "34548e96-4cbb-4fe3-a73f-35365f565c3e",
@@ -246,15 +290,15 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        400,
-        384
+        688,
+        512
       ],
       "notes": "Tool: Read Calendar"
     },
     {
       "parameters": {
         "name": "calendar_create",
-        "description": "Create a new Google Calendar event. Use when user wants to schedule something.",
+        "description": "Create a new Google Calendar event. Use when user wants to schedule something or create a meeting.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "a65118bd-0bda-4fc5-934b-dbd0eecdc61d",
@@ -262,7 +306,7 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        496,
+        816,
         512
       ],
       "notes": "Tool: Create Calendar Event"
@@ -270,7 +314,7 @@
     {
       "parameters": {
         "name": "serp_search",
-        "description": "Search the web using SerpAPI. Use when user asks for current information or web searches.",
+        "description": "Search the web using SerpAPI. Use when user asks for current information, news, or web searches.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "f74874d4-8dcf-47cc-9e0c-2f5cbcce4851",
@@ -278,7 +322,7 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        608,
+        944,
         512
       ],
       "notes": "Tool: Web Search"
@@ -286,7 +330,7 @@
     {
       "parameters": {
         "name": "notion_search",
-        "description": "Search Notion database. Use when user asks about documents or knowledge base.",
+        "description": "Search Notion database. Use when user asks about documents, notes, or knowledge base information.",
         "workflowId": "={{ $workflow.id }}"
       },
       "id": "706baa21-3198-42db-8e29-d67598f193e1",
@@ -294,8 +338,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 1.1,
       "position": [
-        784,
-        544
+        1072,
+        512
       ],
       "notes": "Tool: Search Notion"
     },
@@ -306,26 +350,10 @@
       "type": "@n8n/n8n-nodes-langchain.toolCalculator",
       "typeVersion": 1,
       "position": [
-        928,
-        544
+        1200,
+        512
       ],
       "notes": "Tool: Calculator"
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "key": "={{ 'memory_' + $json.chatId }}",
-        "options": {}
-      },
-      "id": "bba8cf41-4023-4219-93da-7a55bb287896",
-      "name": "Memory",
-      "type": "n8n-nodes-base.redis",
-      "typeVersion": 1,
-      "position": [
-        608,
-        352
-      ],
-      "notes": "Persistent memory storage"
     },
     {
       "parameters": {
@@ -340,7 +368,7 @@
             {
               "id": "chat-id",
               "name": "chatId",
-              "value": "={{ $('Get text').item.json.chatId }}",
+              "value": "={{ $json.chatId }}",
               "type": "number"
             }
           ]
@@ -348,12 +376,12 @@
         "options": {}
       },
       "id": "ae49414e-0519-4c2a-877f-c436d79468f4",
-      "name": "Sam's note",
+      "name": "Prepare response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        656,
-        -112
+        896,
+        112
       ],
       "notes": "Prepare response for Telegram"
     },
@@ -370,8 +398,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.1,
       "position": [
-        944,
-        -112
+        1104,
+        0
       ],
       "webhookId": "a65f16ec-30b6-44c0-9e95-bb3d65622be8",
       "notes": "Send text response back to user"
@@ -383,6 +411,22 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.response }}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_monolingual_v1"
+            },
+            {
+              "name": "voice_settings",
+              "value": "={{ {\"stability\": 0.5, \"similarity_boost\": 0.5} }}"
+            }
+          ]
+        },
         "options": {
           "response": {
             "response": {
@@ -396,8 +440,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        960,
-        192
+        1104,
+        224
       ],
       "notes": "Convert text to speech using ElevenLabs"
     },
@@ -407,16 +451,16 @@
         "chatId": "={{ $json.chatId }}",
         "binaryData": true,
         "additionalFields": {
-          "caption": "Here's your voice response!"
+          "caption": "🎤 Voice response"
         }
       },
       "id": "e6b712ad-8651-46fb-b095-d38e5fcb7589",
-      "name": "Voice note",
+      "name": "Voice response",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.1,
       "position": [
-        1168,
-        176
+        1312,
+        224
       ],
       "webhookId": "0766e381-b875-491d-8b17-d7f0c13006d4",
       "notes": "Send voice note back to user"
@@ -464,18 +508,51 @@
         ]
       ]
     },
-    "🤖 S.I.E.R.R.A": {
+    "Get audio": {
       "main": [
         [
           {
-            "node": "Sam's note",
+            "node": "Transcribe audio",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Sam's note": {
+    "Transcribe audio": {
+      "main": [
+        [
+          {
+            "node": "Extract transcribed text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract transcribed text": {
+      "main": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 S.I.E.R.R.A": {
+      "main": [
+        [
+          {
+            "node": "Prepare response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare response": {
       "main": [
         [
           {
@@ -495,7 +572,7 @@
       "main": [
         [
           {
-            "node": "Voice note",
+            "node": "Voice response",
             "type": "main",
             "index": 0
           }
@@ -519,6 +596,72 @@
           {
             "node": "🤖 S.I.E.R.R.A",
             "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail-Read": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail-Send": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar-Read": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar-Create": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion-Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
             "index": 0
           }
         ]
