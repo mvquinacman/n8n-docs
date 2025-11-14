@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Attendance Agent - QR Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .settings {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f7f7f7;
+            border-radius: 10px;
+        }
+
+        .settings label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .settings input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .settings input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .settings small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        #reader {
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        #reader.active {
+            display: block;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .result h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .result p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .result .icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .manual-entry {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7f7f7;
+            border-radius: 10px;
+        }
+
+        .manual-entry h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .manual-entry-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .manual-entry input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .manual-entry button {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .log {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .log h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+            font-size: 12px;
+            border-left: 3px solid #667eea;
+        }
+
+        .log-entry.success {
+            border-left-color: #28a745;
+        }
+
+        .log-entry.error {
+            border-left-color: #dc3545;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 AI Attendance Agent</h1>
+            <p>Scan QR codes for event check-in</p>
+        </div>
+
+        <div class="content">
+            <div class="settings">
+                <label for="webhookUrl">n8n Webhook URL:</label>
+                <input
+                    type="text"
+                    id="webhookUrl"
+                    placeholder="https://your-n8n-instance.com/webhook/qr-attendance"
+                    value=""
+                >
+                <small>Enter your n8n webhook URL above</small>
+            </div>
+
+            <div class="settings" style="margin-top: 15px;">
+                <label for="scannerName">Scanner Name:</label>
+                <input
+                    type="text"
+                    id="scannerName"
+                    placeholder="Enter your name (e.g., John Doe)"
+                    value=""
+                >
+                <small>This will be logged with each scan</small>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px;">Processing...</p>
+            </div>
+
+            <div class="result" id="result"></div>
+
+            <div id="reader"></div>
+
+            <button class="btn btn-primary" id="startBtn" onclick="startScanner()">
+                Start QR Scanner
+            </button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopScanner()" style="display: none;">
+                Stop Scanner
+            </button>
+
+            <div class="manual-entry">
+                <h3>Manual QR Code Entry</h3>
+                <div class="manual-entry-group">
+                    <input
+                        type="text"
+                        id="manualQrCode"
+                        placeholder="Enter QR code manually"
+                    >
+                    <button onclick="submitManualCode()">Submit</button>
+                </div>
+            </div>
+
+            <div class="log">
+                <h3>Scan Log</h3>
+                <div id="logEntries">
+                    <p style="color: #999; font-size: 12px;">No scans yet...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let html5QrcodeScanner;
+        let isScanning = false;
+        let lastScannedCode = null;
+        let lastScanTime = 0;
+        const SCAN_COOLDOWN = 3000; // 3 seconds cooldown between same code scans
+
+        function startScanner() {
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const scannerName = document.getElementById('scannerName').value.trim();
+
+            if (!webhookUrl) {
+                showResult('error', 'Configuration Error', 'Please enter the n8n webhook URL');
+                return;
+            }
+
+            if (!scannerName) {
+                showResult('error', 'Configuration Error', 'Please enter your scanner name');
+                return;
+            }
+
+            const reader = document.getElementById('reader');
+            reader.classList.add('active');
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
+
+            html5QrcodeScanner = new Html5Qrcode("reader");
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                console.error('Error starting scanner:', err);
+                showResult('error', 'Scanner Error', 'Unable to access camera. Please check permissions.');
+                stopScanner();
+            });
+
+            isScanning = true;
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    const reader = document.getElementById('reader');
+                    reader.classList.remove('active');
+                    document.getElementById('startBtn').style.display = 'block';
+                    document.getElementById('stopBtn').style.display = 'none';
+                    isScanning = false;
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                });
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            const currentTime = Date.now();
+
+            // Prevent duplicate scans within cooldown period
+            if (decodedText === lastScannedCode && (currentTime - lastScanTime) < SCAN_COOLDOWN) {
+                return;
+            }
+
+            lastScannedCode = decodedText;
+            lastScanTime = currentTime;
+
+            console.log('QR Code scanned:', decodedText);
+            submitQRCode(decodedText);
+        }
+
+        function onScanError(errorMessage) {
+            // Ignore scan errors (they happen frequently during scanning)
+            // console.log('Scan error:', errorMessage);
+        }
+
+        function submitManualCode() {
+            const qrCode = document.getElementById('manualQrCode').value.trim();
+
+            if (!qrCode) {
+                showResult('error', 'Input Error', 'Please enter a QR code');
+                return;
+            }
+
+            submitQRCode(qrCode);
+            document.getElementById('manualQrCode').value = '';
+        }
+
+        async function submitQRCode(qrCode) {
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const scannerName = document.getElementById('scannerName').value.trim();
+
+            if (!webhookUrl) {
+                showResult('error', 'Configuration Error', 'Please enter the n8n webhook URL');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        qr_code: qrCode,
+                        scanner: scannerName || 'Unknown',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').classList.remove('show');
+
+                if (data.status === 'success') {
+                    showResult(
+                        'success',
+                        data.message || 'Access Authorized',
+                        `Guest: ${data.guest_name || 'Unknown'}<br>QR Code: ${qrCode}<br>Time: ${new Date(data.timestamp).toLocaleString()}`
+                    );
+                    addLogEntry('success', `✓ ${data.guest_name || 'Guest'} - ${data.message}`);
+
+                    // Play success sound (optional)
+                    playSound('success');
+                } else {
+                    showResult(
+                        'error',
+                        data.message || 'Access Denied',
+                        `QR Code: ${qrCode}<br>${data.guest_name ? `Guest: ${data.guest_name}<br>` : ''}Time: ${new Date(data.timestamp || Date.now()).toLocaleString()}`
+                    );
+                    addLogEntry('error', `✗ ${data.message} - ${qrCode}`);
+
+                    // Play error sound (optional)
+                    playSound('error');
+                }
+
+            } catch (error) {
+                console.error('Error submitting QR code:', error);
+                document.getElementById('loading').classList.remove('show');
+                showResult('error', 'Connection Error', `Unable to connect to server: ${error.message}`);
+                addLogEntry('error', `✗ Connection error - ${qrCode}`);
+            }
+        }
+
+        function showResult(type, title, message) {
+            const resultDiv = document.getElementById('result');
+            const icon = type === 'success' ? '✅' : '❌';
+
+            resultDiv.className = `result ${type} show`;
+            resultDiv.innerHTML = `
+                <div class="icon">${icon}</div>
+                <h3>${title}</h3>
+                <p>${message}</p>
+            `;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                resultDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        function addLogEntry(type, message) {
+            const logEntries = document.getElementById('logEntries');
+
+            // Remove placeholder if exists
+            if (logEntries.querySelector('p')) {
+                logEntries.innerHTML = '';
+            }
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+
+            logEntries.insertBefore(entry, logEntries.firstChild);
+
+            // Keep only last 10 entries
+            while (logEntries.children.length > 10) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        function playSound(type) {
+            // Optional: Add sound feedback
+            // You can add audio elements and play them here
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = type === 'success' ? 800 : 400;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (error) {
+                // Ignore audio errors
+                console.log('Audio not supported');
+            }
+        }
+
+        // Handle Enter key in manual input
+        document.getElementById('manualQrCode').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                submitManualCode();
+            }
+        });
+
+        // Save settings to localStorage
+        document.getElementById('webhookUrl').addEventListener('input', function() {
+            localStorage.setItem('webhookUrl', this.value);
+        });
+
+        document.getElementById('scannerName').addEventListener('input', function() {
+            localStorage.setItem('scannerName', this.value);
+        });
+
+        // Load settings from localStorage
+        window.addEventListener('load', function() {
+            const savedWebhookUrl = localStorage.getItem('webhookUrl');
+            const savedScannerName = localStorage.getItem('scannerName');
+
+            if (savedWebhookUrl) {
+                document.getElementById('webhookUrl').value = savedWebhookUrl;
+            }
+
+            if (savedScannerName) {
+                document.getElementById('scannerName').value = savedScannerName;
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (isScanning) {
+                stopScanner();
+            }
+        });
+    </script>
+</body>
+</html>

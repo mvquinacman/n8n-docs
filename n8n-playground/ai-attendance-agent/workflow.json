@@ -1,0 +1,406 @@
+{
+  "name": "AI Attendance Agent - QR Code Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qr-attendance",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - QR Scanner",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "qr-attendance-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract QR code from webhook payload\nconst qrCode = $input.item.json.body?.qr_code || $input.item.json.qr_code;\nconst scanner = $input.item.json.body?.scanner || $input.item.json.scanner || 'unknown';\nconst timestamp = new Date().toISOString();\n\nif (!qrCode) {\n  throw new Error('QR code is required');\n}\n\nreturn {\n  qr_code: qrCode,\n  scanner: scanner,\n  timestamp: timestamp\n};"
+      },
+      "id": "extract-qr-data",
+      "name": "Extract QR Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "application": "{{BASEROW_DATABASE_ID}}",
+        "table": "{{BASEROW_TABLE_ID}}",
+        "options": {
+          "filters": {
+            "filter": [
+              {
+                "field": "qr_code",
+                "operator": "equal",
+                "value": "={{$json.qr_code}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "search-baserow",
+      "name": "Search Baserow for QR Code",
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "baserowApi": {
+          "id": "{{BASEROW_CREDENTIAL_ID}}",
+          "name": "Baserow Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.results}}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-record-exists",
+      "name": "Record Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract first result from Baserow search\nconst results = $input.item.json.results || [];\n\nif (results.length === 0) {\n  throw new Error('No record found');\n}\n\nconst record = results[0];\n\nreturn {\n  record_id: record.id,\n  qr_code: record.qr_code,\n  qrcode_used: record.qrcode_used || false,\n  guest_name: record.guest_name || record.name || 'Guest',\n  original_data: record\n};"
+      },
+      "id": "extract-record",
+      "name": "Extract Record Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.qrcode_used}}",
+              "rightValue": "false",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-qr-used",
+      "name": "QR Code Already Used?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "application": "{{BASEROW_DATABASE_ID}}",
+        "table": "{{BASEROW_TABLE_ID}}",
+        "rowId": "={{$json.record_id}}",
+        "options": {},
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "qrcode_used",
+              "fieldValue": "true"
+            },
+            {
+              "fieldName": "used_timestamp",
+              "fieldValue": "={{$('Extract QR Data').item.json.timestamp}}"
+            },
+            {
+              "fieldName": "scanner_name",
+              "fieldValue": "={{$('Extract QR Data').item.json.scanner}}"
+            }
+          ]
+        }
+      },
+      "id": "update-baserow-authorized",
+      "name": "Mark QR as Used",
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [1450, 100],
+      "credentials": {
+        "baserowApi": {
+          "id": "{{BASEROW_CREDENTIAL_ID}}",
+          "name": "Baserow Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare success response\nconst guestName = $('Extract Record Data').item.json.guest_name;\nconst qrCode = $('Extract QR Data').item.json.qr_code;\nconst timestamp = $('Extract QR Data').item.json.timestamp;\n\nreturn {\n  status: 'success',\n  message: 'Access authorized',\n  guest_name: guestName,\n  qr_code: qrCode,\n  timestamp: timestamp,\n  log: {\n    action: 'authorized',\n    qr_code: qrCode,\n    guest_name: guestName,\n    timestamp: timestamp,\n    scanner: $('Extract QR Data').item.json.scanner\n  }\n};"
+      },
+      "id": "prepare-authorized-response",
+      "name": "Prepare Authorized Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare already-used response\nconst guestName = $json.guest_name;\nconst qrCode = $('Extract QR Data').item.json.qr_code;\nconst timestamp = $('Extract QR Data').item.json.timestamp;\n\nreturn {\n  status: 'error',\n  message: 'QR already used',\n  guest_name: guestName,\n  qr_code: qrCode,\n  timestamp: timestamp,\n  log: {\n    action: 'duplicate',\n    qr_code: qrCode,\n    guest_name: guestName,\n    timestamp: timestamp,\n    scanner: $('Extract QR Data').item.json.scanner\n  }\n};"
+      },
+      "id": "prepare-duplicate-response",
+      "name": "Prepare Duplicate Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare not-authorized response\nconst qrCode = $('Extract QR Data').item.json.qr_code;\nconst timestamp = $('Extract QR Data').item.json.timestamp;\n\nreturn {\n  status: 'error',\n  message: 'Not authorized',\n  qr_code: qrCode,\n  timestamp: timestamp,\n  log: {\n    action: 'unauthorized',\n    qr_code: qrCode,\n    timestamp: timestamp,\n    scanner: $('Extract QR Data').item.json.scanner\n  }\n};"
+      },
+      "id": "prepare-unauthorized-response",
+      "name": "Prepare Unauthorized Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "application": "{{BASEROW_LOG_DATABASE_ID}}",
+        "table": "{{BASEROW_LOG_TABLE_ID}}",
+        "options": {},
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "action",
+              "fieldValue": "={{$json.log.action}}"
+            },
+            {
+              "fieldName": "qr_code",
+              "fieldValue": "={{$json.log.qr_code}}"
+            },
+            {
+              "fieldName": "guest_name",
+              "fieldValue": "={{$json.log.guest_name || 'Unknown'}}"
+            },
+            {
+              "fieldName": "timestamp",
+              "fieldValue": "={{$json.log.timestamp}}"
+            },
+            {
+              "fieldName": "scanner",
+              "fieldValue": "={{$json.log.scanner}}"
+            }
+          ]
+        }
+      },
+      "id": "log-attempt",
+      "name": "Log Attempt to Baserow",
+      "type": "n8n-nodes-base.baserow",
+      "typeVersion": 1,
+      "position": [1850, 200],
+      "credentials": {
+        "baserowApi": {
+          "id": "{{BASEROW_CREDENTIAL_ID}}",
+          "name": "Baserow Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - QR Scanner": {
+      "main": [
+        [
+          {
+            "node": "Extract QR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract QR Data": {
+      "main": [
+        [
+          {
+            "node": "Search Baserow for QR Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Baserow for QR Code": {
+      "main": [
+        [
+          {
+            "node": "Record Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Found?": {
+      "main": [
+        [
+          {
+            "node": "Extract Record Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Unauthorized Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Record Data": {
+      "main": [
+        [
+          {
+            "node": "QR Code Already Used?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QR Code Already Used?": {
+      "main": [
+        [
+          {
+            "node": "Mark QR as Used",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Duplicate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark QR as Used": {
+      "main": [
+        [
+          {
+            "node": "Prepare Authorized Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Authorized Response": {
+      "main": [
+        [
+          {
+            "node": "Log Attempt to Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Duplicate Response": {
+      "main": [
+        [
+          {
+            "node": "Log Attempt to Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Unauthorized Response": {
+      "main": [
+        [
+          {
+            "node": "Log Attempt to Baserow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Attempt to Baserow": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "ai-attendance-agent",
+  "meta": {
+    "instanceId": "n8n-attendance-system"
+  },
+  "tags": []
+}
