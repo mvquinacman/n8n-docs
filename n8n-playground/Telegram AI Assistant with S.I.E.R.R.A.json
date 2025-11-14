@@ -1,0 +1,549 @@
+{
+  "name": "Telegram AI Assistant with S.I.E.R.R.A",
+  "nodes": [
+    {
+      "parameters": {
+        "additionalFields": {}
+      },
+      "id": "4068a5e4-d489-43a9-80c0-3c0acc3272c2",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        112
+      ],
+      "webhookId": "telegram-bot-webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "text-condition",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "voice-condition",
+                    "leftValue": "={{ $json.message.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "voice"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3bf7f642-f8af-4bbf-8e6a-487fba5679ea",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -208,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "extract-text",
+              "name": "userMessage",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-chatid",
+              "name": "chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "extract-username",
+              "name": "username",
+              "value": "={{ $json.message.from.username || $json.message.from.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "message-id",
+              "name": "messageId",
+              "value": "={{ $json.message.message_id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff7b4bfb-4608-4f6b-90c7-d09113b37b6d",
+      "name": "Get text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Extract text message and user info"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "3533dfd4-aa2f-412d-a92d-feaba966fdd0",
+      "name": "Get audio",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "17640b9a-2a40-4742-9e52-bc8f36574427",
+      "notes": "Download voice file from Telegram"
+    },
+    {
+      "parameters": {},
+      "id": "6e9669bc-5243-4eb4-b690-180d0e846ac6",
+      "name": "Transcribe audio",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        208
+      ],
+      "credentials": {},
+      "notes": "Transcribe voice message using Whisper"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chatId }}",
+        "contextWindowLength": 10
+      },
+      "id": "35f02f22-1674-44cc-97c6-76923ba422fb",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        496
+      ],
+      "notes": "Store conversation history per chat"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are S.I.E.R.R.A, an advanced AI assistant integrated with Telegram. You have access to multiple tools and capabilities to help users with various tasks.\n\nYour capabilities include:\n- Accessing and searching Gmail\n- Reading and creating Google Calendar events  \n- Searching Notion databases\n- Performing calculations\n- Searching the web using SerpAPI\n- Generating AI responses using OpenAI\n- Storing information in memory\n\nAlways be helpful, concise, and professional. When using tools, explain what you're doing. If you need to use multiple tools to answer a question, do so systematically.\n\nCurrent user: {{ $json.username }}\nChat ID: {{ $json.chatId }}",
+        "options": {
+          "systemMessage": "You are S.I.E.R.R.A (Smart Intelligent Entity for Research and Response Automation), a highly capable AI assistant."
+        }
+      },
+      "id": "1ec00026-58b4-400a-b292-dd6f38a8a0e9",
+      "name": "🤖 S.I.E.R.R.A",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        400,
+        112
+      ],
+      "notes": "Main AI Agent with system prompt"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0.7
+        }
+      },
+      "id": "59138bd6-8ac4-4d53-8272-2f056da8e0cb",
+      "name": "OpenAI GPT-4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "name": "gmail_search",
+        "description": "Search Gmail messages. Use this when the user asks about emails.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "e59f3375-df60-48a7-b4d9-465e97c7a868",
+      "name": "Gmail-Read",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        512
+      ],
+      "notes": "Tool: Search Gmail"
+    },
+    {
+      "parameters": {
+        "name": "gmail_send",
+        "description": "Send an email via Gmail. Use when user wants to send an email.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "7ea8c279-67e4-4436-b813-d8aa6befb341",
+      "name": "Gmail-Send",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        512
+      ],
+      "notes": "Tool: Send Gmail"
+    },
+    {
+      "parameters": {
+        "name": "calendar_read",
+        "description": "Read Google Calendar events. Use when user asks about their schedule or meetings.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "34548e96-4cbb-4fe3-a73f-35365f565c3e",
+      "name": "Calendar-Read",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        384
+      ],
+      "notes": "Tool: Read Calendar"
+    },
+    {
+      "parameters": {
+        "name": "calendar_create",
+        "description": "Create a new Google Calendar event. Use when user wants to schedule something.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "a65118bd-0bda-4fc5-934b-dbd0eecdc61d",
+      "name": "Calendar-Create",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        512
+      ],
+      "notes": "Tool: Create Calendar Event"
+    },
+    {
+      "parameters": {
+        "name": "serp_search",
+        "description": "Search the web using SerpAPI. Use when user asks for current information or web searches.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "f74874d4-8dcf-47cc-9e0c-2f5cbcce4851",
+      "name": "SerpAPI",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        512
+      ],
+      "notes": "Tool: Web Search"
+    },
+    {
+      "parameters": {
+        "name": "notion_search",
+        "description": "Search Notion database. Use when user asks about documents or knowledge base.",
+        "workflowId": "={{ $workflow.id }}"
+      },
+      "id": "706baa21-3198-42db-8e29-d67598f193e1",
+      "name": "Notion-Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        784,
+        544
+      ],
+      "notes": "Tool: Search Notion"
+    },
+    {
+      "parameters": {},
+      "id": "70ce7848-ef28-4964-ac09-51f42de94fc6",
+      "name": "Calculator",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        928,
+        544
+      ],
+      "notes": "Tool: Calculator"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ 'memory_' + $json.chatId }}",
+        "options": {}
+      },
+      "id": "bba8cf41-4023-4219-93da-7a55bb287896",
+      "name": "Memory",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        608,
+        352
+      ],
+      "notes": "Persistent memory storage"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-text",
+              "name": "response",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id",
+              "name": "chatId",
+              "value": "={{ $('Get text').item.json.chatId }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ae49414e-0519-4c2a-877f-c436d79468f4",
+      "name": "Sam's note",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        656,
+        -112
+      ],
+      "notes": "Prepare response for Telegram"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b2925bde-4ab8-42c1-bea0-70bde157a0da",
+      "name": "Text response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        -112
+      ],
+      "webhookId": "a65f16ec-30b6-44c0-9e95-bb3d65622be8",
+      "notes": "Send text response back to user"
+    },
+    {
+      "parameters": {
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/{{ $env.ELEVENLABS_VOICE_ID }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "application/json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "e8f773c8-7265-4396-835f-a188133fb206",
+      "name": "Generate voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        192
+      ],
+      "notes": "Convert text to speech using ElevenLabs"
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $json.chatId }}",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "Here's your voice response!"
+        }
+      },
+      "id": "e6b712ad-8651-46fb-b095-d38e5fcb7589",
+      "name": "Voice note",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        1168,
+        176
+      ],
+      "webhookId": "0766e381-b875-491d-8b17-d7f0c13006d4",
+      "notes": "Send voice note back to user"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get text": {
+      "main": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 S.I.E.R.R.A": {
+      "main": [
+        [
+          {
+            "node": "Sam's note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sam's note": {
+      "main": [
+        [
+          {
+            "node": "Text response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate voice": {
+      "main": [
+        [
+          {
+            "node": "Voice note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "🤖 S.I.E.R.R.A",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0df6a344-2863-4d3c-832e-77f91e7c157c",
+  "meta": {
+    "instanceId": "66f284f518bf2f5037c6c70ec814727334fc387d82aafcd1bd6fa1062d511d83"
+  },
+  "id": "s2JjjetLrLp64nCB",
+  "tags": []
+}
