@@ -72,6 +72,31 @@ An automated social media bot that monitors AI-related subreddits, generates eng
 
 ---
 
+### 3. Email and Document Automation (`email-document-automation/`)
+
+A comprehensive workflow for automated email processing, AI-powered classification, document storage on NAS, invoice validation, and project tracking.
+
+**Location:** [`email-document-automation/`](./email-document-automation/)
+
+**Features:**
+- Multi-account IMAP email monitoring (3+ accounts)
+- AI-powered email classification (Invoice, Project Update, Document, General)
+- Automatic NAS/SMB document storage with organized folder structure
+- Semi-automated invoice validation with AI checking
+- Project tracking spreadsheet updates
+- PDF generation and templated email responses
+- Comprehensive logging and error alerting (Slack, Email, Google Sheets)
+- Automatic folder creation following customizable logic
+- Support for multiple attachments and file types
+
+**Quick Start:** See [`email-document-automation/QUICKSTART.md`](./email-document-automation/QUICKSTART.md)
+
+**Documentation:** See [`email-document-automation/README.md`](./email-document-automation/README.md)
+
+**Setup Guide:** See [`email-document-automation/SETUP.md`](./email-document-automation/SETUP.md)
+
+---
+
 ## Usage
 
 1. Navigate to the desired workflow folder
@@ -119,4 +144,4 @@ These workflows are separate from the main n8n template collection and are maint
 ---
 
 **Maintained by:** n8n Community Contributors
-**Last Updated:** January 13, 2025
+**Last Updated:** January 17, 2025

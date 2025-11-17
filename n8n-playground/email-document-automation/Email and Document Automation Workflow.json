@@ -1,0 +1,1439 @@
+{
+  "name": "Email and Document Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "email-trigger-1",
+      "name": "IMAP Email Trigger - Account 1",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        0
+      ],
+      "credentials": {
+        "imap": {
+          "id": "1",
+          "name": "IMAP Account 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "email-trigger-2",
+      "name": "IMAP Email Trigger - Account 2",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        200
+      ],
+      "credentials": {
+        "imap": {
+          "id": "2",
+          "name": "IMAP Account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "email-trigger-3",
+      "name": "IMAP Email Trigger - Account 3",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        400
+      ],
+      "credentials": {
+        "imap": {
+          "id": "3",
+          "name": "IMAP Account 3"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "merge-emails",
+      "name": "Merge Email Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "extract-subject",
+              "name": "emailSubject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-from",
+              "name": "emailFrom",
+              "value": "={{ $json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-body",
+              "name": "emailBody",
+              "value": "={{ $json.text || $json.html }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-date",
+              "name": "emailDate",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "extract-attachments",
+              "name": "hasAttachments",
+              "value": "={{ $json.attachments && $json.attachments.length > 0 }}",
+              "type": "boolean"
+            },
+            {
+              "id": "extract-attachment-count",
+              "name": "attachmentCount",
+              "value": "={{ $json.attachments ? $json.attachments.length : 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "message-id",
+              "name": "messageId",
+              "value": "={{ $json.messageId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-email-data",
+      "name": "Extract Email Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {
+          "systemMessage": "You are an email classification assistant. Analyze the email and classify it into one of these categories:\n- INVOICE: Email contains invoice, billing, or payment request\n- PROJECT_UPDATE: Email about project progress, updates, or status\n- DOCUMENT: Email with important documents or attachments\n- GENERAL: General correspondence\n\nReturn ONLY the category name in uppercase. Also extract key information:\n- For INVOICE: vendor name, invoice number, amount, due date\n- For PROJECT_UPDATE: project name, status\n- For DOCUMENT: document type\n\nReturn a JSON object with:\n{\n  \"category\": \"CATEGORY_NAME\",\n  \"confidence\": 0.95,\n  \"metadata\": {\n    \"vendorName\": \"...\",\n    \"invoiceNumber\": \"...\",\n    \"amount\": \"...\",\n    \"dueDate\": \"...\",\n    \"projectName\": \"...\",\n    \"documentType\": \"...\"\n  }\n}"
+        },
+        "text": "=Subject: {{ $json.emailSubject }}\nFrom: {{ $json.emailFrom }}\nBody: {{ $json.emailBody }}\nHas Attachments: {{ $json.hasAttachments }}",
+        "resource": "text"
+      },
+      "id": "ai-classify-email",
+      "name": "AI Classify Email",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [
+        -200,
+        200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and extract classification\nconst aiResponse = $input.item.json.message?.content || '{}';\n\nlet classification;\ntry {\n  classification = JSON.parse(aiResponse);\n} catch (e) {\n  // Fallback if AI doesn't return valid JSON\n  classification = {\n    category: 'GENERAL',\n    confidence: 0.5,\n    metadata: {}\n  };\n}\n\n// Merge with existing email data\nreturn {\n  ...items[0].json,\n  classification: classification.category,\n  confidence: classification.confidence,\n  metadata: classification.metadata\n};"
+      },
+      "id": "parse-classification",
+      "name": "Parse AI Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "invoice-condition",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "INVOICE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "invoice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "project-condition",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "PROJECT_UPDATE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "project"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "document-condition",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "DOCUMENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "general-condition",
+                    "leftValue": "={{ $json.classification }}",
+                    "rightValue": "GENERAL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "general"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-by-category",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Invoice Processing Logic\nconst metadata = $input.item.json.metadata || {};\nconst emailData = $input.item.json;\n\n// Extract invoice details\nconst invoiceData = {\n  vendorName: metadata.vendorName || 'Unknown Vendor',\n  invoiceNumber: metadata.invoiceNumber || 'N/A',\n  amount: metadata.amount || '0.00',\n  dueDate: metadata.dueDate || 'N/A',\n  emailFrom: emailData.emailFrom,\n  emailSubject: emailData.emailSubject,\n  receivedDate: emailData.emailDate,\n  \n  // Generate folder structure: /Invoices/YYYY/MM/VendorName/\n  year: new Date(emailData.emailDate).getFullYear(),\n  month: String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0'),\n  folderPath: `/Invoices/${new Date(emailData.emailDate).getFullYear()}/${String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0')}/${metadata.vendorName || 'Unknown'}`,\n  \n  // File naming: Invoice_VendorName_InvoiceNumber_YYYYMMDD.pdf\n  fileName: `Invoice_${(metadata.vendorName || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${(metadata.invoiceNumber || 'N/A').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date(emailData.emailDate).toISOString().split('T')[0].replace(/-/g, '')}.pdf`,\n  \n  // Flag for manual review\n  needsReview: !metadata.invoiceNumber || !metadata.amount,\n  \n  // Status\n  status: 'pending_review'\n};\n\nreturn {\n  ...emailData,\n  invoiceData\n};"
+      },
+      "id": "process-invoice",
+      "name": "Process Invoice Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {
+          "systemMessage": "You are an invoice validation assistant. Review the invoice details and check for:\n1. Valid invoice number format\n2. Reasonable amount (not obviously incorrect)\n3. Valid due date\n4. Vendor name matches known vendors\n5. Any red flags or anomalies\n\nReturn a JSON object:\n{\n  \"isValid\": true/false,\n  \"confidence\": 0.95,\n  \"issues\": [\"list of issues found\"],\n  \"recommendations\": [\"list of recommendations\"],\n  \"requiresManualReview\": true/false\n}"
+        },
+        "text": "=Invoice Details:\nVendor: {{ $json.invoiceData.vendorName }}\nInvoice #: {{ $json.invoiceData.invoiceNumber }}\nAmount: {{ $json.invoiceData.amount }}\nDue Date: {{ $json.invoiceData.dueDate }}\nEmail From: {{ $json.invoiceData.emailFrom }}",
+        "resource": "text"
+      },
+      "id": "ai-validate-invoice",
+      "name": "AI Validate Invoice",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI validation response\nconst aiResponse = $input.item.json.message?.content || '{}';\n\nlet validation;\ntry {\n  validation = JSON.parse(aiResponse);\n} catch (e) {\n  validation = {\n    isValid: false,\n    confidence: 0,\n    issues: ['Failed to parse AI response'],\n    recommendations: ['Manual review required'],\n    requiresManualReview: true\n  };\n}\n\n// Merge validation with invoice data\nconst previousData = items[0].json;\nreturn {\n  ...previousData,\n  validation,\n  invoiceData: {\n    ...previousData.invoiceData,\n    validationStatus: validation.isValid ? 'validated' : 'needs_review',\n    validationIssues: validation.issues,\n    validationRecommendations: validation.recommendations\n  }\n};"
+      },
+      "id": "parse-invoice-validation",
+      "name": "Parse Invoice Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create folder structure for NAS/SMB storage\nconst invoiceData = $input.item.json.invoiceData;\nconst folderPath = invoiceData.folderPath;\n\n// Return folder creation commands\nreturn {\n  ...items[0].json,\n  nasOperations: {\n    createFolders: [\n      '/Invoices',\n      `/Invoices/${invoiceData.year}`,\n      `/Invoices/${invoiceData.year}/${invoiceData.month}`,\n      folderPath\n    ],\n    targetFolder: folderPath,\n    targetFileName: invoiceData.fileName\n  }\n};"
+      },
+      "id": "prepare-nas-storage",
+      "name": "Prepare NAS Folder Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}",
+        "binaryData": true,
+        "binaryPropertyName": "attachment",
+        "options": {
+          "createDirectories": true
+        }
+      },
+      "id": "upload-to-nas",
+      "name": "Upload to NAS (SMB)",
+      "type": "n8n-nodes-base.smb",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ],
+      "credentials": {
+        "smb": {
+          "id": "1",
+          "name": "NAS SMB Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_INVOICE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.invoiceData.receivedDate }}",
+            "Vendor": "={{ $json.invoiceData.vendorName }}",
+            "Invoice Number": "={{ $json.invoiceData.invoiceNumber }}",
+            "Amount": "={{ $json.invoiceData.amount }}",
+            "Due Date": "={{ $json.invoiceData.dueDate }}",
+            "Status": "={{ $json.invoiceData.validationStatus }}",
+            "File Path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}",
+            "Validation Issues": "={{ $json.invoiceData.validationIssues ? $json.invoiceData.validationIssues.join(', ') : '' }}",
+            "Needs Review": "={{ $json.validation.requiresManualReview ? 'YES' : 'NO' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "update-invoice-spreadsheet",
+      "name": "Update Invoice Spreadsheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs-review-check",
+              "leftValue": "={{ $json.validation.requiresManualReview }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-manual-review",
+      "name": "Check If Manual Review Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@yourcompany.com",
+        "toEmail": "finance@yourcompany.com",
+        "subject": "=Invoice Requires Manual Review: {{ $json.invoiceData.invoiceNumber }}",
+        "emailType": "html",
+        "message": "=<h2>Invoice Review Required</h2>\n<p>An invoice has been received that requires manual review.</p>\n\n<h3>Invoice Details:</h3>\n<ul>\n  <li><strong>Vendor:</strong> {{ $json.invoiceData.vendorName }}</li>\n  <li><strong>Invoice Number:</strong> {{ $json.invoiceData.invoiceNumber }}</li>\n  <li><strong>Amount:</strong> {{ $json.invoiceData.amount }}</li>\n  <li><strong>Due Date:</strong> {{ $json.invoiceData.dueDate }}</li>\n  <li><strong>Received From:</strong> {{ $json.emailFrom }}</li>\n</ul>\n\n<h3>Validation Issues:</h3>\n<ul>\n{{ $json.invoiceData.validationIssues.map(issue => `<li>${issue}</li>`).join('\\n') }}\n</ul>\n\n<h3>Recommendations:</h3>\n<ul>\n{{ $json.invoiceData.validationRecommendations.map(rec => `<li>${rec}</li>`).join('\\n') }}\n</ul>\n\n<p><strong>File Location:</strong> {{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}</p>\n\n<p>Please review and approve in the invoice tracking spreadsheet.</p>",
+        "options": {}
+      },
+      "id": "send-review-alert",
+      "name": "Send Review Alert Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1800,
+        -100
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Project Update Processing Logic\nconst metadata = $input.item.json.metadata || {};\nconst emailData = $input.item.json;\n\n// Extract project details\nconst projectData = {\n  projectName: metadata.projectName || 'Unknown Project',\n  status: metadata.status || 'In Progress',\n  emailFrom: emailData.emailFrom,\n  emailSubject: emailData.emailSubject,\n  emailBody: emailData.emailBody,\n  receivedDate: emailData.emailDate,\n  \n  // Generate folder structure: /Projects/ProjectName/Updates/YYYY/MM/\n  year: new Date(emailData.emailDate).getFullYear(),\n  month: String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0'),\n  folderPath: `/Projects/${(metadata.projectName || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}/Updates/${new Date(emailData.emailDate).getFullYear()}/${String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0')}`,\n  \n  // File naming: ProjectUpdate_ProjectName_YYYYMMDD.pdf\n  fileName: `ProjectUpdate_${(metadata.projectName || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date(emailData.emailDate).toISOString().split('T')[0].replace(/-/g, '')}.pdf`\n};\n\nreturn {\n  ...emailData,\n  projectData\n};"
+      },
+      "id": "process-project-update",
+      "name": "Process Project Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.html2pdf.app/v1/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "=<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; padding: 40px; }\n    h1 { color: #333; }\n    .meta { color: #666; font-size: 0.9em; }\n    .content { margin-top: 20px; line-height: 1.6; }\n  </style>\n</head>\n<body>\n  <h1>Project Update: {{ $json.projectData.projectName }}</h1>\n  <div class=\"meta\">\n    <p><strong>From:</strong> {{ $json.projectData.emailFrom }}</p>\n    <p><strong>Date:</strong> {{ $json.projectData.receivedDate }}</p>\n    <p><strong>Status:</strong> {{ $json.projectData.status }}</p>\n  </div>\n  <div class=\"content\">\n    <h2>{{ $json.projectData.emailSubject }}</h2>\n    <p>{{ $json.projectData.emailBody }}</p>\n  </div>\n</body>\n</html>"
+            },
+            {
+              "name": "fileName",
+              "value": "={{ $json.projectData.fileName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-project-pdf",
+      "name": "Generate Project Update PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "PDF API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare NAS storage for project update\nconst projectData = $input.item.json.projectData;\nconst folderPath = projectData.folderPath;\n\nreturn {\n  ...items[0].json,\n  nasOperations: {\n    createFolders: [\n      '/Projects',\n      `/Projects/${projectData.projectName.replace(/[^a-zA-Z0-9]/g, '_')}`,\n      `/Projects/${projectData.projectName.replace(/[^a-zA-Z0-9]/g, '_')}/Updates`,\n      `/Projects/${projectData.projectName.replace(/[^a-zA-Z0-9]/g, '_')}/Updates/${projectData.year}`,\n      folderPath\n    ],\n    targetFolder: folderPath,\n    targetFileName: projectData.fileName\n  }\n};"
+      },
+      "id": "prepare-project-nas",
+      "name": "Prepare Project NAS Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "options": {
+          "createDirectories": true
+        }
+      },
+      "id": "upload-project-to-nas",
+      "name": "Upload Project Update to NAS",
+      "type": "n8n-nodes-base.smb",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ],
+      "credentials": {
+        "smb": {
+          "id": "1",
+          "name": "NAS SMB Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PROJECT_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Project Updates",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.projectData.receivedDate }}",
+            "Project Name": "={{ $json.projectData.projectName }}",
+            "Status": "={{ $json.projectData.status }}",
+            "From": "={{ $json.projectData.emailFrom }}",
+            "Subject": "={{ $json.projectData.emailSubject }}",
+            "File Path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "update-project-spreadsheet",
+      "name": "Update Project Spreadsheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@yourcompany.com",
+        "toEmail": "={{ $json.projectData.emailFrom }}",
+        "subject": "=Re: {{ $json.projectData.emailSubject }}",
+        "emailType": "html",
+        "message": "=<h2>Project Update Received</h2>\n<p>Thank you for your project update regarding <strong>{{ $json.projectData.projectName }}</strong>.</p>\n\n<p>Your update has been successfully received and filed. Our team will review it and respond if needed.</p>\n\n<h3>Summary:</h3>\n<ul>\n  <li><strong>Project:</strong> {{ $json.projectData.projectName }}</li>\n  <li><strong>Status:</strong> {{ $json.projectData.status }}</li>\n  <li><strong>Received:</strong> {{ $json.projectData.receivedDate }}</li>\n</ul>\n\n<p>Best regards,<br>Project Management Team</p>",
+        "options": {}
+      },
+      "id": "send-project-confirmation",
+      "name": "Send Project Confirmation Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1400,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Document Processing Logic\nconst metadata = $input.item.json.metadata || {};\nconst emailData = $input.item.json;\n\n// Determine document category based on metadata\nconst docType = metadata.documentType || 'General';\n\n// Extract document details\nconst documentData = {\n  documentType: docType,\n  emailFrom: emailData.emailFrom,\n  emailSubject: emailData.emailSubject,\n  receivedDate: emailData.emailDate,\n  hasAttachments: emailData.hasAttachments,\n  attachmentCount: emailData.attachmentCount,\n  \n  // Generate folder structure: /Documents/DocumentType/YYYY/MM/\n  year: new Date(emailData.emailDate).getFullYear(),\n  month: String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0'),\n  folderPath: `/Documents/${docType.replace(/[^a-zA-Z0-9]/g, '_')}/${new Date(emailData.emailDate).getFullYear()}/${String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0')}`,\n  \n  // Base file naming\n  fileNameBase: `${docType.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date(emailData.emailDate).toISOString().split('T')[0].replace(/-/g, '')}`\n};\n\nreturn {\n  ...emailData,\n  documentData\n};"
+      },
+      "id": "process-document",
+      "name": "Process Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-attachments-check",
+              "leftValue": "={{ $json.documentData.hasAttachments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-attachments",
+      "name": "Check For Attachments",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process each attachment\nconst attachments = $input.item.json.attachments || [];\nconst documentData = $input.item.json.documentData;\n\nconst outputs = [];\n\nfor (let i = 0; i < attachments.length; i++) {\n  const attachment = attachments[i];\n  \n  outputs.push({\n    json: {\n      ...items[0].json,\n      currentAttachment: attachment,\n      attachmentIndex: i,\n      attachmentFileName: attachment.filename || `attachment_${i}`,\n      nasOperations: {\n        createFolders: [\n          '/Documents',\n          `/Documents/${documentData.documentType.replace(/[^a-zA-Z0-9]/g, '_')}`,\n          `/Documents/${documentData.documentType.replace(/[^a-zA-Z0-9]/g, '_')}/${documentData.year}`,\n          documentData.folderPath\n        ],\n        targetFolder: documentData.folderPath,\n        targetFileName: `${documentData.fileNameBase}_${attachment.filename || `attachment_${i}`}`\n      }\n    },\n    binary: {\n      attachment: attachment\n    }\n  });\n}\n\nreturn outputs;"
+      },
+      "id": "process-attachments",
+      "name": "Process Each Attachment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}",
+        "binaryData": true,
+        "binaryPropertyName": "attachment",
+        "options": {
+          "createDirectories": true
+        }
+      },
+      "id": "upload-attachments-to-nas",
+      "name": "Upload Attachments to NAS",
+      "type": "n8n-nodes-base.smb",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "credentials": {
+        "smb": {
+          "id": "1",
+          "name": "NAS SMB Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_DOCUMENT_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Documents",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.documentData.receivedDate }}",
+            "Document Type": "={{ $json.documentData.documentType }}",
+            "From": "={{ $json.documentData.emailFrom }}",
+            "Subject": "={{ $json.documentData.emailSubject }}",
+            "File Name": "={{ $json.attachmentFileName }}",
+            "File Path": "={{ $json.nasOperations.targetFolder }}/{{ $json.nasOperations.targetFileName }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "update-document-spreadsheet",
+      "name": "Update Document Spreadsheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// General Email Processing\nconst emailData = $input.item.json;\n\n// Store in general correspondence folder\nconst generalData = {\n  emailFrom: emailData.emailFrom,\n  emailSubject: emailData.emailSubject,\n  emailBody: emailData.emailBody,\n  receivedDate: emailData.emailDate,\n  \n  // Generate folder structure: /General/YYYY/MM/\n  year: new Date(emailData.emailDate).getFullYear(),\n  month: String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0'),\n  folderPath: `/General/${new Date(emailData.emailDate).getFullYear()}/${String(new Date(emailData.emailDate).getMonth() + 1).padStart(2, '0')}`,\n  \n  // File naming\n  fileName: `Email_${new Date(emailData.emailDate).toISOString().split('T')[0].replace(/-/g, '')}_${emailData.messageId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)}.eml`\n};\n\nreturn {\n  ...emailData,\n  generalData\n};"
+      },
+      "id": "process-general-email",
+      "name": "Process General Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GENERAL_EMAIL_LOG_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Email Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.generalData.receivedDate }}",
+            "From": "={{ $json.generalData.emailFrom }}",
+            "Subject": "={{ $json.generalData.emailSubject }}",
+            "Category": "General",
+            "File Path": "={{ $json.generalData.folderPath }}/{{ $json.generalData.fileName }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-general-email",
+      "name": "Log General Email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        600
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success-flag",
+              "name": "processingStatus",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "processedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-success",
+      "name": "Mark Processing Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=✅ Email processed successfully\n*Category:* {{ $json.classification }}\n*From:* {{ $json.emailFrom }}\n*Subject:* {{ $json.emailSubject }}\n*Processed:* {{ $json.processedAt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-success-slack",
+      "name": "Log Success to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.error.message }}",
+        "options": {
+          "includeExecutionDetails": true
+        }
+      },
+      "id": "error-trigger",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error-details",
+              "name": "errorDetails",
+              "value": "={{ $json.error }}",
+              "type": "object"
+            },
+            {
+              "id": "error-timestamp",
+              "name": "errorTimestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "workflow-name",
+              "name": "workflowName",
+              "value": "Email and Document Automation",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "capture-error-details",
+      "name": "Capture Error Details",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -600,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_ERROR_LOG_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Error Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.errorTimestamp }}",
+            "Workflow": "={{ $json.workflowName }}",
+            "Error Message": "={{ $json.errorDetails.message }}",
+            "Node": "={{ $json.errorDetails.node }}",
+            "Details": "={{ JSON.stringify($json.errorDetails) }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-error-to-sheet",
+      "name": "Log Error to Spreadsheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        800
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=🚨 *Email Automation Workflow Error*\n*Time:* {{ $json.errorTimestamp }}\n*Error:* {{ $json.errorDetails.message }}\n*Node:* {{ $json.errorDetails.node }}\n\nPlease check the error log spreadsheet for full details."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alert-error-slack",
+      "name": "Alert Error to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@yourcompany.com",
+        "toEmail": "admin@yourcompany.com",
+        "subject": "=🚨 Email Automation Error - {{ $json.errorTimestamp }}",
+        "emailType": "html",
+        "message": "=<h2>Workflow Error Alert</h2>\n<p>An error occurred in the Email and Document Automation workflow.</p>\n\n<h3>Error Details:</h3>\n<ul>\n  <li><strong>Time:</strong> {{ $json.errorTimestamp }}</li>\n  <li><strong>Error:</strong> {{ $json.errorDetails.message }}</li>\n  <li><strong>Node:</strong> {{ $json.errorDetails.node }}</li>\n</ul>\n\n<h3>Full Error Details:</h3>\n<pre>{{ JSON.stringify($json.errorDetails, null, 2) }}</pre>\n\n<p>Please investigate and resolve this issue.</p>",
+        "options": {}
+      },
+      "id": "email-error-alert",
+      "name": "Email Error Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        800
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP Credentials"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IMAP Email Trigger - Account 1": {
+      "main": [
+        [
+          {
+            "node": "Merge Email Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMAP Email Trigger - Account 2": {
+      "main": [
+        [
+          {
+            "node": "Merge Email Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "IMAP Email Trigger - Account 3": {
+      "main": [
+        [
+          {
+            "node": "Merge Email Sources",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Email Sources": {
+      "main": [
+        [
+          {
+            "node": "Extract Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email Data": {
+      "main": [
+        [
+          {
+            "node": "AI Classify Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Classify Email": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Classification": {
+      "main": [
+        [
+          {
+            "node": "Route by Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Category": {
+      "main": [
+        [
+          {
+            "node": "Process Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Project Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process General Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "AI Validate Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Validate Invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Invoice Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Invoice Validation": {
+      "main": [
+        [
+          {
+            "node": "Prepare NAS Folder Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare NAS Folder Structure": {
+      "main": [
+        [
+          {
+            "node": "Upload to NAS (SMB)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to NAS (SMB)": {
+      "main": [
+        [
+          {
+            "node": "Update Invoice Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Invoice Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Check If Manual Review Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Manual Review Needed": {
+      "main": [
+        [
+          {
+            "node": "Send Review Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Alert Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Project Update": {
+      "main": [
+        [
+          {
+            "node": "Generate Project Update PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Project Update PDF": {
+      "main": [
+        [
+          {
+            "node": "Prepare Project NAS Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Project NAS Storage": {
+      "main": [
+        [
+          {
+            "node": "Upload Project Update to NAS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Project Update to NAS": {
+      "main": [
+        [
+          {
+            "node": "Update Project Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Project Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Send Project Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Project Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Document": {
+      "main": [
+        [
+          {
+            "node": "Check For Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check For Attachments": {
+      "main": [
+        [
+          {
+            "node": "Process Each Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Attachment": {
+      "main": [
+        [
+          {
+            "node": "Upload Attachments to NAS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Attachments to NAS": {
+      "main": [
+        [
+          {
+            "node": "Update Document Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Document Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process General Email": {
+      "main": [
+        [
+          {
+            "node": "Log General Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log General Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Processing Success": {
+      "main": [
+        [
+          {
+            "node": "Log Success to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Capture Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Error Details": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error to Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Alert Error to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Error to Slack": {
+      "main": [
+        [
+          {
+            "node": "Email Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "CURRENT"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "your-instance-id"
+  },
+  "id": "email-document-automation",
+  "tags": []
+}
